@@ -455,14 +455,22 @@ int read_light(int)
 
 
 // Sample Window Shifting Function
-void window_shifter(int *array, int window_length) 
+void window_shifter(struct mapper *ar_struct, int window_length) 
 {
     unsigned short i;   // preallocate increment index
+    int ar1[3];
+    int ar2[3];
+    // For each sample . . .
+    for (i = 0; i < (window_length-1); i++) {
+        // Copy into array
+        ar1[i] = ar_struct[i].angle;
+        ar2[i] = ar_struct[i].milivolt;
+    }
     // For each sample . . .
     for (i = 0; i < (window_length-1); i++) {
         // Shift the sample into the next index
-        array[i+1].angle = array[i].angle;
-        array[i+1].milivolt = array[i].milivolt;
+        ar_struct[i+1].angle = ar1[i];
+        ar_struct[i+1].milivolt = ar2[i];
     }
 }
 
