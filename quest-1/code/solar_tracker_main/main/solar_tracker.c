@@ -24,6 +24,11 @@
 #define ACTIVE 1
 
 // CONSTANTS ~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_
+
+// While Loop Active
+#define ACTIVE 1
+
+// SERVOS
 #define servo_pin   18   // Control pin for the servo
 #define max_pw      2500 // Maximum pulse width (miliseconds)
 #define min_pw      500  // Minimum pulse width (miliseconds)
@@ -33,25 +38,6 @@
 #define min_angle   -90  // Minimum angle (degrees)
 #define start_angle 2    // Initial angle (degrees)
 #define delay_ms    200  // Delay between steps (miliseconds)
-
-// Constant Variables for printing [-] [\] [|] [/] [-]
-const float low_pw = (0.20 * (max_aval_pw - min_aval_pw)) + min_aval_pw;    // low (short) PW   [-]
-const float mid_low_pw = (0.4 * (max_aval_pw - min_aval_pw)) + min_aval_pw; // middle-low PW    [/]
-const float mid_high_pw = (0.6 * (max_aval_pw - min_aval_pw)) + min_aval_pw;// middle-high PW   [\]
-const float high_pw = (0.80 * (max_aval_pw - min_aval_pw)) + min_aval_pw;   // high (long) PW   [-]
-
-// Global Variables
-struct mapper
-{
-   int angle;
-   int milivolt;
-};
-
-struct mapper arr[15];
-
-
-// User Input
-#define ACTIVE 1
 
 // 14-Segment Display
 #define SLAVE_ADDR                         0x70 // alphanumeric address
@@ -78,6 +64,21 @@ struct mapper arr[15];
 // Voltage Reader
 #define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define NO_OF_SAMPLES   64          //Multisampling
+
+// Constant Variables for printing [-] [\] [|] [/] [-]
+const float low_pw = (0.20 * (max_aval_pw - min_aval_pw)) + min_aval_pw;    // low (short) PW   [-]
+const float mid_low_pw = (0.4 * (max_aval_pw - min_aval_pw)) + min_aval_pw; // middle-low PW    [/]
+const float mid_high_pw = (0.6 * (max_aval_pw - min_aval_pw)) + min_aval_pw;// middle-high PW   [\]
+const float high_pw = (0.80 * (max_aval_pw - min_aval_pw)) + min_aval_pw;   // high (long) PW   [-]
+
+// Global Variables
+struct mapper
+{
+   int angle;
+   int milivolt;
+};
+
+struct mapper arr[15];
 
 // Voltage Reader Variables
 static esp_adc_cal_characteristics_t *adc_chars;
@@ -536,7 +537,64 @@ static void wide_servo_sweep_task(void)
 
 void init() 
 {
+    // Setup the servo
     setup_servo();
+
+    // SET UP SERIAL COMMUNICATION ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+    /* Install UART driver for interrupt-driven reads and writes */
+    ESP_ERROR_CHECK( uart_driver_install(UART_NUM_0, 256, 0, 0, NULL, 0) );
+    /* Tell VFS to use UART driver */
+    esp_vfs_dev_uart_use_driver(UART_NUM_0);
+
+    // SET UP I2C ALPHANUMERIC DISPLAY ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+    setup_alpha_display();      // Set-Up Oscillator, Blink, & Brightness
+
+    // SET UP VOLTAGE READER  ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
+    //Check if Two Point or Vref are burned into eFuse
+    check_efuse();
+
+    //Configure ADC
+    if (unit == ADC_UNIT_1) {
+        adc1_config_width(ADC_WIDTH_BIT_12);
+        adc1_config_channel_atten(channel, atten);
+    } else {
+        adc2_config_channel_atten((adc2_channel_t)channel, atten);
+    }
+
+    //Characterize ADC
+    adc_chars = calloc(1, sizeof(esp_adc_cal_characteristics_t));
+    esp_adc_cal_value_t val_type = esp_adc_cal_characterize(unit, atten, ADC_WIDTH_BIT_12, DEFAULT_VREF, adc_chars);
+    print_char_val_type(val_type);
+}
+
+void task_read_voltage_test() {
+    //Continuously sample ADC1
+    while (1) {
+        uint32_t adc_reading = 0;
+        //Multisampling
+        for (int i = 0; i < NO_OF_SAMPLES; i++) {
+            if (unit == ADC_UNIT_1) {
+                adc_reading += adc1_get_raw((adc1_channel_t)channel);
+            } else {
+                int raw;
+                adc2_get_raw((adc2_channel_t)channel, ADC_WIDTH_BIT_12, &raw);
+                adc_reading += raw;
+            }
+        }
+        adc_reading /= NO_OF_SAMPLES;
+        //Convert adc_reading to voltage in mV
+        uint32_t voltage = esp_adc_cal_raw_to_voltage(adc_reading, adc_chars);
+        printf("Raw: %d\tVoltage: %dmV\n", adc_reading, voltage);
+
+        // Convert Voltage into a String
+        char volt_buf[50];
+        sprintf(volt_buf, "%d", voltage);
+
+        // Write to the Alphanumeric Display
+        write_alpha_display(volt_buf);
+
+        vTaskDelay(pdMS_TO_TICKS(1000)); // delay
+    }
 }
 
 // Main Function
@@ -548,6 +606,6 @@ void app_main(void)
     printf("\n[[[START]]]");
     // Run the tasks
     xTaskCreate(wide_servo_sweep_task, "wide_servo_sweep_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
-    // xTaskCreate(task_2, "task_2", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+    // xTaskCreate(task_read_voltage_test, "task_read_voltage_test", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
     // xTaskCreate(task_3, "task_3", 1024*2, NULL, configMAX_PRIORITIES-2, NULL);
 }
