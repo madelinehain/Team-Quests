@@ -536,43 +536,4 @@ void app_main(void)
     printf("\nSetting PW to %d (Initial Position)", i_pw); // Print whats happeneing
     mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, i_pw); // set position
     vTaskDelay(1000 / portTICK_PERIOD_MS);  // delay
-
-    // ~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_
-    // LOOP
-    // Move the Servo Back and Forth Between it's Maximum and Minimum Angles
-    while (ACTIVE)
-    {
-        // If the PWM is at a bound of its range, reverse the direction
-        if (i_pw >= max_aval_pw){
-            step_pw = -step_pw;
-            i_pw = max_aval_pw;
-        } else if (i_pw <= min_aval_pw) {
-            step_pw = -step_pw;
-            i_pw = min_aval_pw;
-        }
-
-        // Angle-Character Selection for Print
-        if ((i_pw <= low_pw) || (i_pw > high_pw)) {
-            angle_char = '-';
-        } else if ((i_pw <= high_pw) && (i_pw > mid_high_pw)) {
-            angle_char = '\\';
-        } else if ((i_pw <= mid_high_pw) && (i_pw > mid_low_pw)) {
-            angle_char = '|';
-        } else if ((i_pw <= mid_low_pw) && (i_pw > low_pw)) {
-            angle_char = '/';
-        }
-
-        // Find actual angle (not necessarily the full +-90° at the bounds)
-        int i_angle = range_map(i_pw, max_aval_pw, min_aval_pw, max_aval_angle, min_aval_angle);
-        // Print Next Position
-        printf("\n[%c] Setting PW to   %d   or   %d°", angle_char, i_pw, i_angle); // Print whats happeneing
-
-        // Update Position
-        mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, i_pw);
-        vTaskDelay(delay_ms / portTICK_PERIOD_MS);  // delay
-
-        i_pw += step_pw;  // increment PW by step
-
-    }
-
 }
