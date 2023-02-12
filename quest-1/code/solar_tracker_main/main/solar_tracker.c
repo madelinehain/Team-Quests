@@ -475,8 +475,24 @@ void window_shifter(struct mapper *ar_struct, int window_length)
 }
 
 // 
-static void init_servo_task(void)
+static void wide_servo_sweep_task(void)
 {
+    int step_pw = 50;
+    // Set Inital Pulse Width from start angle definition
+    int i_pw = range_map(start_angle, max_aval_pw, min_aval_pw, max_angle, min_angle);
+    // Character for Printing
+    char angle_char = '|'; 
+    printf("\nlow_pw = %f, mid_low_pw = %f, mid_high_pw = %f, high_pw = %f", low_pw, mid_low_pw, mid_high_pw, high_pw);
+    
+    // Calculate Maximum Available Angle Values
+    int max_aval_angle = range_map(max_aval_pw, max_pw, min_pw, max_angle, min_angle);
+    int min_aval_angle = range_map(min_aval_pw, max_pw, min_pw, max_angle, min_angle);
+
+    // Go To Start Position
+    printf("\nSetting PW to %d (Initial Position)", i_pw); // Print whats happeneing
+    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, i_pw); // set position
+    vTaskDelay(1000 / portTICK_PERIOD_MS);  // delay
+
     while (ACTIVE)
     {
         // If the PWM is at a bound of its range, reverse the direction
@@ -518,30 +534,13 @@ static void init_servo_task(void)
 ////////////////////////////////////////////////////////////////////////////////
 // TASK & MAIN FUNCTIONS ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-void init() {
+void init() 
+{
     setup_servo();
 }
 
 // Main Function
 void app_main(void) 
 {
-    // ~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_~_
-    // SETUP
-    setup_servo();
-    // Set Step for the Pulse Width
-    int step_pw = 50;
-    // Set Inital Pulse Width from start angle definition
-    int i_pw = range_map(start_angle, max_aval_pw, min_aval_pw, max_angle, min_angle);
-    // Character for Printing
-    char angle_char = '|'; 
-    printf("\nlow_pw = %f, mid_low_pw = %f, mid_high_pw = %f, high_pw = %f", low_pw, mid_low_pw, mid_high_pw, high_pw);
     
-    // Calculate Maximum Available Angle Values
-    int max_aval_angle = range_map(max_aval_pw, max_pw, min_pw, max_angle, min_angle);
-    int min_aval_angle = range_map(min_aval_pw, max_pw, min_pw, max_angle, min_angle);
-
-    // Go To Start Position
-    printf("\nSetting PW to %d (Initial Position)", i_pw); // Print whats happeneing
-    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, i_pw); // set position
-    vTaskDelay(1000 / portTICK_PERIOD_MS);  // delay
 }
