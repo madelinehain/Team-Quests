@@ -542,5 +542,12 @@ void init()
 // Main Function
 void app_main(void) 
 {
-    
+    printf("\n<<<Setup>>>");
+    init();				// Initialize stuff
+
+    printf("\n[[[START]]]");
+    // Run the tasks
+    xTaskCreate(wide_servo_sweep_task, "wide_servo_sweep_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
+    // xTaskCreate(task_2, "task_2", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+    // xTaskCreate(task_3, "task_3", 1024*2, NULL, configMAX_PRIORITIES-2, NULL);
 }
