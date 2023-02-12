@@ -36,7 +36,7 @@
 #define min_aval_pw 600  // Minimum available pulse width (miliseconds)
 #define max_angle   90   // Maximum angle (degrees)
 #define min_angle   -90  // Minimum angle (degrees)
-#define start_angle 2    // Initial angle (degrees)
+#define start_angle -90  // Initial angle (degrees)
 #define delay_ms    200  // Delay between steps (miliseconds)
 
 // 14-Segment Display
@@ -65,6 +65,9 @@
 #define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define NO_OF_SAMPLES   64          //Multisampling
 
+// Solar Tracker
+#define WINDOW_SIZE 15  // size of the angle 1&2 voltage struct window
+
 // Constant Variables for printing [-] [\] [|] [/] [-]
 const float low_pw = (0.20 * (max_aval_pw - min_aval_pw)) + min_aval_pw;    // low (short) PW   [-]
 const float mid_low_pw = (0.4 * (max_aval_pw - min_aval_pw)) + min_aval_pw; // middle-low PW    [/]
@@ -78,7 +81,7 @@ struct mapper
    int milivolt;
 };
 
-struct mapper arr[15];
+struct mapper vol_ang[WINDOW_SIZE];
 
 // Voltage Reader Variables
 static esp_adc_cal_characteristics_t *adc_chars;
@@ -489,44 +492,57 @@ static void wide_servo_sweep_task(void)
     int max_aval_angle = range_map(max_aval_pw, max_pw, min_pw, max_angle, min_angle);
     int min_aval_angle = range_map(min_aval_pw, max_pw, min_pw, max_angle, min_angle);
 
-    // Go To Start Position
-    printf("\nSetting PW to %d (Initial Position)", i_pw); // Print whats happeneing
-    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, i_pw); // set position
-    vTaskDelay(1000 / portTICK_PERIOD_MS);  // delay
 
     while (ACTIVE)
     {
-        // If the PWM is at a bound of its range, reverse the direction
-        if (i_pw >= max_aval_pw){
-            step_pw = -step_pw;
-            i_pw = max_aval_pw;
-        } else if (i_pw <= min_aval_pw) {
-            step_pw = -step_pw;
-            i_pw = min_aval_pw;
+        // Go To Start Position
+        printf("\nSetting PW to %d (Initial Position)", i_pw); // Print whats happeneing
+        mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, i_pw); // set position
+        vTaskDelay(1000 / portTICK_PERIOD_MS);  // delay
+
+        switch (state_look4light) // ***********
+        {
+        case 1:
+            if (i_pw < max_aval_pw) && (vol_ang[0].milivolt > vol_ang[WINDOW_SIZE].milivolt) {
+                // Angle-Character Selection for Print
+                if ((i_pw <= low_pw) || (i_pw > high_pw)) {
+                    angle_char = '-';
+                } else if ((i_pw <= high_pw) && (i_pw > mid_high_pw)) {
+                    angle_char = '\\';
+                } else if ((i_pw <= mid_high_pw) && (i_pw > mid_low_pw)) {
+                    angle_char = '|';
+                } else if ((i_pw <= mid_low_pw) && (i_pw > low_pw)) {
+                    angle_char = '/';
+                }
+
+
+                // Find actual angle (not necessarily the full +-90° at the bounds)
+                int i_angle = range_map(i_pw, max_aval_pw, min_aval_pw, max_aval_angle, min_aval_angle);
+                // Print Next Position
+                printf("\n[%c] Setting PW to   %d   or   %d°", angle_char, i_pw, i_angle); // Print whats happeneing
+
+                // Update Position
+                mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, i_pw);   // set the position
+                vTaskDelay(delay_ms / portTICK_PERIOD_MS);  // delay
+
+                // Shift the window
+                window_shifter(vol_ang, WINDOW_SIZE);
+
+                // Read Voltage
+                // *** put some code here *****
+
+                // Put new values into struct
+                vol_ang[0].angle = i_angle;
+                vol_ang[0].milivolt = // *********
+
+                i_pw += step_pw;  // increment PW by step
+            }
+
+            break;
+        case 0:
+            break;
         }
 
-        // Angle-Character Selection for Print
-        if ((i_pw <= low_pw) || (i_pw > high_pw)) {
-            angle_char = '-';
-        } else if ((i_pw <= high_pw) && (i_pw > mid_high_pw)) {
-            angle_char = '\\';
-        } else if ((i_pw <= mid_high_pw) && (i_pw > mid_low_pw)) {
-            angle_char = '|';
-        } else if ((i_pw <= mid_low_pw) && (i_pw > low_pw)) {
-            angle_char = '/';
-        }
-
-        // Find actual angle (not necessarily the full +-90° at the bounds)
-        int i_angle = range_map(i_pw, max_aval_pw, min_aval_pw, max_aval_angle, min_aval_angle);
-        // Print Next Position
-        printf("\n[%c] Setting PW to   %d   or   %d°", angle_char, i_pw, i_angle); // Print whats happeneing
-        window_shifter()
-
-        // Update Position
-        mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, i_pw);
-        vTaskDelay(delay_ms / portTICK_PERIOD_MS);  // delay
-
-        i_pw += step_pw;  // increment PW by step
 
     }
 }
