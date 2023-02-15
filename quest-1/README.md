@@ -1,8 +1,8 @@
-# Quest Name
+# Solar Tracker
 
-Authors: FirstName1 LastName1, FirstName2 LastName2, FirstName3 LastName 3
+Authors: Maxwell Bakalos, Emre Karabay, Miguel Ianus-Valdiva
 
-Date: YYYY-MM-DD
+Date: 2023-2-15
 
 ### Summary
 
@@ -11,13 +11,12 @@ Date: YYYY-MM-DD
 
 | Objective Criterion | Rating | Max Value  | 
 |---------------------------------------------|:-----------:|:---------:|
-| Objective One |  |  1     | 
-| Objective Two |  |  1     | 
-| Objective Three |  |  1     | 
-| Objective Four |  |  1     | 
-| Objective Five |  |  1     | 
-| Objective Six |  |  1     | 
-| Objective Seven |  |  1     | 
+| 1. Keeps track of time using hardware timer | 1 |  1     | 
+| 2. Measures input from solar cell | 1 |  1     | 
+| 3. Finds azimuth and altitude at maximum intensity | 1 |  1     | 
+| 4. Drives two servos to position of maximum intensity | 1 |  1     | 
+| 5. Cyclic behavior at design frequency driven by clock (not delays) | 1 |  1     | 
+| 6. Reports results on display in degrees  | 1 |  1     | 
 
 
 ### Solution Design
