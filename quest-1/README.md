@@ -21,6 +21,13 @@ Date: 2023-2-15
 
 ### Solution Design
 
+There are two tasks that run via free RTOS in our design solution:
+
+**TASK 1:** <br>
+Every 10 seconds a timer interrupt sets a global variable to true and triggers the light search process.
+
+**TASK 2:**<br>
+If the trigger is activated, the esp32 samples a photoresistor and stores the samples in a sliding window as it moves across its rotational range. Once it detects that the brightness is decreasing, it stops and finds the maximum brightness in the window, then moves to that angle. This repeats for the azimuth and altitude and then once again for the azimuth (redundancy) to make sure the true maximum angles are found. As this process occurs, the azimuth & altitude angles are displayed on a 14-segment alphanumeric display. Due to the display only having 4 digits, the absoute values of the angles are displaye (-90° to 90°).
 
 
 ### Sketches/Diagrams
