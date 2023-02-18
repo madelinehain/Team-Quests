@@ -35,7 +35,7 @@ Caption Here
 
 ### Supporting Artifacts
 - [Link to video technical presentation](). Not to exceed 120s
-- [Link to video demo](). Not to exceed 120s
+- Video Demo: https://drive.google.com/file/d/17g9OgLx2nZTP8Kzh1uSnudWER-i7OE7v/view?usp=share_link
 
 
 ### Modules, Tools, Source Used Including Attribution
