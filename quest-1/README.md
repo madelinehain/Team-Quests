@@ -21,7 +21,7 @@ Date: 2023-2-15
 
 ### Solution Design
 
-There are two tasks that run via free RTOS in our design solution:
+This project was created by programming the ESP32 microcontroller in C. Two servos (each with a 180° range) are used to point a photoresistor toward the direction of greatest brightness. There are two tasks that run via FreeRTOS in this design:
 
 **TASK 1:** <br>
 Every 10 seconds a timer interrupt sets a global variable to true and triggers the light search process.
@@ -43,11 +43,12 @@ Photo of Solar Tracker
 
 
 ### Supporting Artifacts
-- [Link to video technical presentation](). Not to exceed 120s
+- Technical Presentation: https://drive.google.com/file/d/1Y_ZIFBd358TcTIxwNPBsxReSCSffHqh6/view?usp=share_link
 - Video Demo: https://drive.google.com/file/d/17g9OgLx2nZTP8Kzh1uSnudWER-i7OE7v/view?usp=share_link
 
 
 ### Modules, Tools, Source Used Including Attribution
+All of the skills in Quest 1 were used: UART Serial Communication, Alphanumeric Display, Voltage Reader, Servos, FreeRTOS Tasks, and Timer Interrupts.
 
 ### References
 
