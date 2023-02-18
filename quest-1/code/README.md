@@ -1,8 +1,4 @@
 # Code Readme
 
-Please describe what is in your code folder and subfolders. Make it
-easy for us to navigate this space.
+In the "solar_tracker" folder there is the "main" folder which contains the C file "solar_tracker.c" containing our project code. The file consists of multiple functions defined above the app_main() function that calls 2 tasks, "timer_evt_task" and "wide_servo_sweep_task" which in turn call the functions above.
 
-Also
-- Please provide your name and date in any code submitted
-- Indicate attributrion for any code you have adopted from elsewhere
