@@ -44,7 +44,7 @@
 #define max_angle   90   // Maximum angle (degrees)
 #define min_angle   -90  // Minimum angle (degrees)
 #define start_angle -90  // Initial angle (degrees)
-#define delay_ms    200  // Delay between steps (miliseconds)
+#define delay_ms    100  // Delay between steps (miliseconds)
 
 // 14-Segment Display
 #define SLAVE_ADDR                         0x70 // alphanumeric address
@@ -79,7 +79,7 @@
 #define TEST_WITH_RELOAD      1     // Testing will be done with auto reload
 
 // Solar Tracker
-#define WINDOW_SIZE     5   // size of the angle 1&2 voltage struct window
+#define WINDOW_SIZE     15   // size of the angle 1&2 voltage struct window
 #define NUM_OF_SWEEPS   3   // # of sweeps (3)
 
 // Constant Variables ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
@@ -103,12 +103,12 @@ typedef struct {
 // Initialize queue handler for timer-based events
 xQueueHandle timer_queue;
 
-int light_search = 0;   // light search toggle trigger (0 -> OFF, 1 -> ON)
+int search_trigger = 0;   // light search toggle trigger (0 -> OFF, 1 -> ON)
 
 struct mapper
 {
    int angle;
-   int milivolt;
+   int volt;
 };
 
 struct mapper vol_ang[WINDOW_SIZE];
@@ -523,7 +523,7 @@ void reset_struct() {
     int min_aval_angle = range_map(min_aval_pw, max_pw, min_pw, max_angle, min_angle);
 
     for (i = 0; i < WINDOW_SIZE; i++) {
-        vol_ang[i].milivolt = 0;            // set voltages to zero
+        vol_ang[i].volt = 0;            // set voltages to zero
         vol_ang[i].angle = min_aval_angle;  // set angles to the minimum available angle
     }
 }
@@ -568,13 +568,13 @@ void window_shifter(struct mapper *ar_struct, int window_length)
     for (i = 0; i < (window_length-1); i++) {
         // Copy into array
         ar1[i] = ar_struct[i].angle;
-        ar2[i] = ar_struct[i].milivolt;
+        ar2[i] = ar_struct[i].volt;
     }
     // For each sample . . .
     for (i = 0; i < (window_length-1); i++) {
         // Shift the sample into the next index
         ar_struct[i+1].angle = ar1[i];
-        ar_struct[i+1].milivolt = ar2[i];
+        ar_struct[i+1].volt = ar2[i];
     }
 }
 
@@ -591,17 +591,18 @@ static void wide_servo_sweep_task()
     int max_vol_pw[NUM_OF_SWEEPS];  // Pulse Width of maximum voltage for each sweep
 
     // Set Step for the Pulse Width
-    int step_pw = 50;
+    int step_pw = 100;
     
     // Character for Printing
     char angle_char = '|'; 
     printf("\nlow_pw = %f, mid_low_pw = %f, mid_high_pw = %f, high_pw = %f", low_pw, mid_low_pw, mid_high_pw, high_pw);
     
     // Set Inital Pulse Width from start angle definition
-    int start_pw = min_aval_pw;
+    int start_pw_0 = min_aval_pw;   // -90 degrees
+    int start_pw_1 = 1500;          // middle 0 degrees
 
     // Set Inital Pulse Width
-    int i_pw = start_pw;
+    int i_pw = start_pw_0;
 
     // Calculate Maximum Available Angle Values
     int max_aval_angle = range_map(max_aval_pw, max_pw, min_pw, max_angle, min_angle);
@@ -611,32 +612,78 @@ static void wide_servo_sweep_task()
     printf("\nParameters: step_pw = %d, angle_char = %c, max_aval_angle = %d, min_aval_angle = %d", step_pw, angle_char, max_aval_angle, min_aval_angle);
 
     // SERVO 1: Go To Start Position
-    printf("\nSERVO #%d: Setting PW to %d (Initial Position)", servo_pin_index, i_pw); // Print whats happeneing
-    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, max_aval_pw);    // set position
-    vTaskDelay(long_delay / portTICK_PERIOD_MS);                                          // delay
-    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, i_pw);   // set position
-    vTaskDelay(long_delay / portTICK_PERIOD_MS);                                  // delay
+    printf("\nSERVO #%d: Setting PW to %d (Initial Position)", servo_pin_index, start_pw_0); // Print whats happeneing
+    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, max_aval_pw);    // set to MAX position
+    vTaskDelay(long_delay / portTICK_PERIOD_MS);                                    // delay
+    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, min_aval_pw);    // set to MIN position
+    vTaskDelay(long_delay / portTICK_PERIOD_MS);                                    // delay
+    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, start_pw_0);     // set to START position
+    vTaskDelay(long_delay / portTICK_PERIOD_MS);                                    // delay
 
 
     // SERVO 2: Go To Start Position
     servo_pin_index = ! servo_pin_index;    // switch servo
     mcpwm_gpio_init(MCPWM_UNIT_0, MCPWM0B, servo_pins_AB[servo_pin_index]);
-    printf("\nSERVO #%d: Setting PW to %d (Initial Position)\n", servo_pin_index, i_pw); // Print whats happeneing
-    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, max_aval_pw);    // set position
-    vTaskDelay(long_delay / portTICK_PERIOD_MS);                                          // delay
-    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, i_pw);   // set position
-    vTaskDelay(long_delay / portTICK_PERIOD_MS);                                  // delay
+    printf("\nSERVO #%d: Setting PW to %d (Initial Position)\n", servo_pin_index, start_pw_1); // Print whats happeneing
+    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, max_aval_pw);    // set to MAX position
+    vTaskDelay(long_delay / portTICK_PERIOD_MS);                                    // delay
+    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, min_aval_pw);    // set to MIN position
+    vTaskDelay(long_delay / portTICK_PERIOD_MS);                                    // delay
+    mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, start_pw_1);     // set to START position
+    vTaskDelay(long_delay / portTICK_PERIOD_MS);                                    // delay
 
     servo_pin_index = ! servo_pin_index;    // switch servo back 
 
+    int search_state = 0;
+
+    int move_condition = 0;
+
     // Task While Loop
     while (ACTIVE)
-    {   
-        if (light_search == 1) 
-        {
+    {
+
+        // If a Search for Light has been Triggered . . . 
+        if (search_trigger == 1) {
+            // Turn the Search to the ON State
+            search_state = 1;
+
+            // Go to start positions . . .
+            // SERVO 1: Go To Start Position
+            printf("\nSERVO #%d: Setting PW to %d (Initial Position)", 0, start_pw_0); // Print whats happeneing
+            mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, start_pw_0);   // set position
+            vTaskDelay(300 / portTICK_PERIOD_MS);                                  // delay
+
+            // SERVO 2: Go To Start Position
+            printf("\nSERVO #%d: Setting PW to %d (Initial Position)", 1, start_pw_1); // Print whats happeneing
+            mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, start_pw_1);   // set position
+            vTaskDelay(300 / portTICK_PERIOD_MS);                                  // delay
+
+            // Reset the Light Search Trigger
+            search_trigger = 0;
+        }
+
+
+
+        // If Searching is turned on . . .
+        if (search_state == 1) {
+
             // If the servo hasn't reached the end of its rotational range 
             // AND the current voltage greater than the oldest voltge in the window . . .
-            if ((i_pw <= max_aval_pw) && (vol_ang[0].milivolt >= vol_ang[WINDOW_SIZE-1].milivolt)) 
+            if ((i_pw <= max_aval_pw) && (vol_ang[0].volt >= vol_ang[WINDOW_SIZE-1].volt)) {
+                // Turn ON the Search
+                if  (vol_ang[0].volt >= vol_ang[WINDOW_SIZE-2].volt) {
+                    move_condition = 1;
+                    printf("\nMover Condition: ON, i_pw = %d, current = %d, last = %d, 2nd last = %d", i_pw, vol_ang[0].volt, vol_ang[WINDOW_SIZE-1].volt, vol_ang[WINDOW_SIZE-2].volt);
+                }
+            } else {
+                // Turn OFF the search
+                move_condition = 0;
+                printf("\n\nFOUND MAXIMUM!\n");
+            }
+            
+
+            // If the search in ON . . .
+            if (move_condition == 1)
             {
                 // Angle-Character Selection for Print
                 if ((i_pw <= low_pw) || (i_pw > high_pw)) {
@@ -670,12 +717,12 @@ static void wide_servo_sweep_task()
 
                 // Put new values into struct
                 vol_ang[0].angle = i_angle;
-                vol_ang[0].milivolt = volt_samp;
+                vol_ang[0].volt = volt_samp;
 
                 int i; // printing increment index variable
-                printf("\nVoltage Window %d: ", vol_ang[WINDOW_SIZE-1].milivolt);
+                printf("\nVoltage Window [i_sweep = %d] %d: ", i_sweep, vol_ang[WINDOW_SIZE-1].volt);
                 for (i = 0; i < WINDOW_SIZE; i++) {
-                    printf("%d, ", vol_ang[i].milivolt);
+                    printf("%d, ", vol_ang[i].volt);
                 }
                 printf("\nAngle Window:   ");
                 for (i = 0; i < WINDOW_SIZE; i++) {
@@ -696,30 +743,29 @@ static void wide_servo_sweep_task()
 
                 i_pw += step_pw;  // increment PW by step
             }
-
             // Else: If this is one of the sweeps . . .
-            else if (i_sweep < NUM_OF_SWEEPS) 
+            else if ((i_sweep < NUM_OF_SWEEPS) && (move_condition == 0))
             {
                 // FIND MAXIMUM VOLTAGE POSITION ~ ~ ~ ~ ~ ~ ~ ~ ~
 
-                max_vol[i_sweep] = vol_ang[0].milivolt;     // initialize max voltage as latest sample
-                max_vol_ang[i_sweep] = vol_ang[0].milivolt; // initialize max voltage angle as latest sample
+                max_vol[i_sweep] = vol_ang[0].volt;     // initialize max voltage (for the sweep) as latest sample
+                max_vol_ang[i_sweep] = vol_ang[0].volt; // initialize max voltage angle (for the sweep) as latest sample
 
                 int j;
                 // Go through the window and find the angle of maximum voltage (light brightness)
                 for (j = 0; j < (WINDOW_SIZE-1); j++) {
                     // if the current voltage is higher . . .
-                    if (vol_ang[j+1].milivolt > vol_ang[j].milivolt) {
+                    if (vol_ang[j+1].volt > max_vol[i_sweep]) {
                         // Make it the new maximum
-                        max_vol[i_sweep] = vol_ang[j+1].milivolt;
+                        max_vol[i_sweep] = vol_ang[j+1].volt;
                         max_vol_ang[i_sweep] = vol_ang[j+1].angle;
                     }
                 }
 
                 int i; // printing increment index variable
-                printf("\n\nVoltage Window %d: ", vol_ang[WINDOW_SIZE-1].milivolt);
+                printf("\n\nVoltage Window %d: ", vol_ang[WINDOW_SIZE-1].volt);
                 for (i = 0; i < WINDOW_SIZE; i++) {
-                    printf("%d, ", vol_ang[i].milivolt);
+                    printf("%d, ", vol_ang[i].volt);
                 }
 
                 // Convert angle -> pulse width
@@ -733,11 +779,15 @@ static void wide_servo_sweep_task()
                 } else if (servo_pin_index == 1) {
                     mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, max_vol_pw[i_sweep]);   // set the position
                 }
+                vTaskDelay(delay_ms / portTICK_PERIOD_MS);  // delay
 
                 i_sweep += 1;   // increment sweep #
 
-                // If it's not after the last sweep . . .
-                if (i_sweep != NUM_OF_SWEEPS) 
+                // Reset pulse width increment
+                i_pw = min_aval_pw;   
+
+                // If there are still more sweeps left . . .
+                if (i_sweep < NUM_OF_SWEEPS) 
                 {
                     // SWITCH TO OTHER & RESET ~ ~ ~ ~ ~ ~ ~ ~ ~
                     // i_sweep += 1;   // increment to next sweep
@@ -748,9 +798,9 @@ static void wide_servo_sweep_task()
                     // Reset Struct for Samples
                     reset_struct();
 
-                    // Reset Position
-                    i_pw = start_pw;    // reset pulse width increment
-                    // Update Position
+                    // Reset the next servo that needs to be used
+                    start_pw_0 = min_aval_pw;   // reset start pulse width (SERVO #0) to mid-sweep start position
+                    start_pw_1 = min_aval_pw;   // reset start pulse width (SERVO #1) to mid-sweep start position
                     if (servo_pin_index == 0) {
                         mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, i_pw);   // set the position
                     } else if (servo_pin_index == 1) {
@@ -758,11 +808,20 @@ static void wide_servo_sweep_task()
                     }
                     vTaskDelay(delay_ms / portTICK_PERIOD_MS);  // delay
                 }
-                else {
-                    // Reset light search toggle to OFF
-                    light_search = 0;
+                // If it is the last sweep . . .
+                else if (i_sweep == NUM_OF_SWEEPS){
+                    // Reset Struct for Samples
+                    reset_struct();
+
+                    // Reset light search state toggle to OFF
+                    search_state = 0;
+                    
                     // Reset sweep index
-                    i_sweep = 0;
+                    i_sweep = 0; 
+                    
+                    // Reset Servos to light search start position
+                    start_pw_0 = min_aval_pw;   // reset start pulse width (SERVO #0)
+                    start_pw_1 = 1500;   // reset start pulse width (SERVO #1)
                 }
 
             }
@@ -793,7 +852,7 @@ static void timer_evt_task(void *arg) {
         // Search for the light if triggered!
         if (evt.flag == 1) {
             printf("\n\n---SEARCHING---\n"); // print
-            light_search = 1;               // Set light search toggle to ON
+            search_trigger = 1;               // Set light search toggle to ON
         }
     }
 }
@@ -814,6 +873,9 @@ void init()
     // Set SCK & SDA pins as pullups
     gpio_set_pull_mode(22, GPIO_PULLUP_ONLY);
     gpio_set_pull_mode(23, GPIO_PULLUP_ONLY);
+    // Write to display
+    char disp_initial[4] = {'A','B','C','D'};
+    write_alpha_display(disp_initial);
 
     // SET UP VOLTAGE READER  ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
     //Check if Two Point or Vref are burned into eFuse
@@ -852,9 +914,12 @@ void app_main(void)
 
     printf("\n[[[START]]]");
     // Run the tasks
-    // xTaskCreate(timer_evt_task, "timer_evt_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
-    // xTaskCreate(wide_servo_sweep_task, "wide_servo_sweep_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
-    xTaskCreate(timer_evt_task, "timer_evt_task", 2048, NULL, 5, NULL);
-    xTaskCreate(wide_servo_sweep_task, "wide_servo_sweep_task", 2048, NULL, 4, NULL);
+    xTaskCreate(timer_evt_task, "timer_evt_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
+    xTaskCreate(wide_servo_sweep_task, "wide_servo_sweep_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+    // xTaskCreate(timer_evt_task, "timer_evt_task", 2048, NULL, 5, NULL);
+    // xTaskCreate(wide_servo_sweep_task, "wide_servo_sweep_task", 2048, NULL, 4, NULL);
+
+    // printf("\n<<<Setup>>>");
+    // init();				// Initialize stuff
 
 }
