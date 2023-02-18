@@ -37,7 +37,7 @@ This repeats for the azimuth and altitude and then once again for the azimuth (r
 <img src="./images/Q1-__Solar_Tracker.JPEG" width="50%">
 </p>
 <p align="center">
-Caption Here
+Photo of Solar Tracker
 </p>
 
 
