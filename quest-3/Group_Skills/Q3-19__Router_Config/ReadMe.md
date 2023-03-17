@@ -1,6 +1,6 @@
 #  Router Config
 
-Author: Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madelyn Hain
+Author: Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
 
 Date: 2023-3-15
 
