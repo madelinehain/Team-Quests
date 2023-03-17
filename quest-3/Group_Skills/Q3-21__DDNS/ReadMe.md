@@ -1,21 +1,20 @@
-#  Router Config
+#  Dynamic Domain Name System (DDNS)
 
 Author: Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
 
-Date: 2023-3-15
+Date: 2023-3-17
 
 
 ### Summary
-We followed the intructions. It is named "Group_5". The username is "root" and the password is "smart". The password to log into the router wifi is "smartsys".
-http://192.168.1.1
+We signed up for free OpenDNS account and used it for our router. The username is "karabay@bu.edu" and the password is "1Smartsys?".
 
 ### Sketches/Diagrams
-![Q3-1__Router_Config pic 1](https://user-images.githubusercontent.com/114166327/225476251-3da02b1d-71a7-420b-8b21-e2d2d800664f.JPG)
-![Q3-1__Router_Config pic 2](https://user-images.githubusercontent.com/114166327/225476254-4330c3bc-8f53-4d13-b044-8ac18762941c.JPG)
+![Q3-3__DDNS](https://user-images.githubusercontent.com/114166327/225970225-8e037a54-78c3-4d6a-9c7d-67fddd8ece72.JPG)
+
 
 
 ### Modules, Tools, Source Used Including Attribution
-
+https://www.opendns.com/
 
 ### Supporting Artifacts
 
