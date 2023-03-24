@@ -19,7 +19,8 @@ https://user-images.githubusercontent.com/114166327/227614331-acae2353-9196-4e90
 
 
 ### Modules, Tools, Source Used Including Attribution
-
+Part 1: https://github.com/espressif/esp-idf/tree/master/examples/protocols/sockets/udp_client <br>
+Part 2: https://github.com/espressif/esp-idf/tree/master/examples/protocols/sockets/udp_server
 
 ### Supporting Artifacts
 
