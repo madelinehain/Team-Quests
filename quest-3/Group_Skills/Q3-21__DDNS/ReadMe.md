@@ -15,7 +15,7 @@ We signed up for free OpenDNS account and used it for our router. The username i
 
 
 ### Modules, Tools, Source Used Including Attribution
-https://www.opendns.com/
+No-IP.com
 
 ### Supporting Artifacts
 
