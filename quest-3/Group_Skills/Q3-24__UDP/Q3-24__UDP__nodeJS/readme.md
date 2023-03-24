@@ -1,8 +1,3 @@
 # Code Readme
 
-Please describe what is in your code folder and subfolders. Make it
-easy for us to navigate this space.
-
-Also
-- Please provide your name and date in any code submitted
-- Indicate attributrion for any code you have adopted from elsewhere
+"Q3-24__UDP__nodeJS" is the nodeJS file for part 1, udp_client is the ESP32 code for part 1, udp_server is the ESP32 code for part 2.
