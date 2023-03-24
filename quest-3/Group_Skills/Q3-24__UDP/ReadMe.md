@@ -7,7 +7,7 @@ Date: 2023-03-24
 
 ### Summary
 #### Part 1: Laptop is Server, ESP32 is Client <br>
-In the ESP32 menuconfig we changed the IPV4 address to the laptop's IP address and in the node server code we used the same IP address. Port 3333 was used.
+In the ESP32 menuconfig we changed the IPV4 address to the laptop's IP address and in the node server code we used the same IP address. Port 3333 was used. We also had to set up the router in menuconfig and used our SSID, "Group_5", and password, "smartsys".
 
 
 ### Sketches/Diagrams
