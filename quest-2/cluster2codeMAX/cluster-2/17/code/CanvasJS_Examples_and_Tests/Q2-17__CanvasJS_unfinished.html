@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Chart using XML Data</title>
+<script type="text/javascript" src="https://canvasjs.com/assets/script/jquery-1.11.1.min.js"></script>
+<script type="text/javascript" src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+<script type="text/javascript">
+    window.onload = function() {
+        var dataPoints = [];
+	 
+        function getDataPointsFromCSV(csv) {
+            var dataPoints = csvLines = points = [];
+            csvLines = csv.split(/[\r?\n|\r|\n]+/);         
+		        
+            for (var i = 1; i < csvLines.length; i++)
+                if (csvLines[i].length > 0) {
+                    points = csvLines[i].split(",");
+                    if (parseFloat(points[1]) == 'AMZN') {
+                        dataPoints.push({ 
+                            x: parseFloat(points[0]), 
+                            y: parseFloat(points[2]),
+                            label: parseFloat(points[1])		
+                        });
+                    }
+                }
+            return dataPoints;
+        }
+	
+    $.get("https://raw.githubusercontent.com/BU-EC444/01-EBook/main/docs/skills/docs/test-data/stocks-csv.txt?token=GHSAT0AAAAAACALLI2L3BHCG5TKRU24KHUMZA53QMA", function(data1) {
+	    var chart = new CanvasJS.Chart("chartContainer", {
+		    title: {
+		         text: "Chart from CSV",
+		    },
+		    data: [{
+		         type: "line",
+		         dataPoints: getDataPointsFromCSV(data1)
+		      }]
+	     });
+		
+	      chart.render();
+
+	});
+  }
+</script>
+</head>
+<body>
+	<div id="chartContainer" style="height: 300px; max-width: 920px; margin: 0px auto;"></div>
+</body>
+</html>
