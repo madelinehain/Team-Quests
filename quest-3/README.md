@@ -1,11 +1,16 @@
-# Quest Name
+# Cat Tracker
+Authors: Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
 
-Authors: FirstName1 LastName1, FirstName2 LastName2, FirstName3 LastName 3
-
-Date: YYYY-MM-DD
+Date: 2023-03-31
 
 ### Summary
+Our device uses a NodeJS server running on a laptop which communicates between two ESP32s and the html webpage, via the router. One ESP32 has a thermistor and sends the data every 2 seconds over to the server, the other ESP32 has an LED and will blink when it receives a message from the server. 
 
+The server receives the thermistor data via wifi through the router at port 3333, stores it in a CSV file called "Sensor_Output.csv", reads the csv data into an array, and passes that array onto the html page for display in a CanvasJS graph.
+
+The html page has a button which toggles the LED to blink. WHen the button is pressed, the node server is notified and it sends a message to the LED ESP32 to either start or stop blinking.
+
+The raspberry pi is set up to stream video (ssh into the Rpi, then use the command "sudo motion" to start streaming). This video is sent to port 8081 and then displayed in the html page.
 
 ### Self-Assessment 
 
