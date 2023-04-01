@@ -1,7 +1,12 @@
 # Sensor -> Node Server -> CSV File -> HTML -> Plot
 
-## Node Server
-"index.js" is the node server which reads from COM7, converts the serial data into a csv file, creates an array from that csv file, and passes the array to the html file. 
+##Node Server
+### File: Q3_Server_Wifi.js
+This contains the NodeJS server that runs on the laptop
 
-## Plot
-"index.html" is the html file, which takes the data array from the server and formats it into an updating plot.
+## Observation Page
+### File: Q3_Web_Observation_Portal.html
+This contains the html webpage observation portal that show all of the sensors and video
+
+#### File: Sensor_Output.csv
+This is the csv file which is an intermediary step between the ESP32, server, and html page
