@@ -16,13 +16,13 @@ The raspberry pi is set up to stream video (ssh into the Rpi, then use the comma
 
 | Objective Criterion | Rating | Max Value  | 
 |---------------------------------------------|:-----------:|:---------:|
-| Objective One |  |  1     | 
-| Objective Two |  |  1     | 
-| Objective Three |  |  1     | 
-| Objective Four |  |  1     | 
-| Objective Five |  |  1     | 
-| Objective Six |  |  1     | 
-| Objective Seven |  |  1     | 
+| Objective One | 1 |  1     | 
+| Objective Two | 1 |  1     | 
+| Objective Three | 0.5 |  1     | 
+| Objective Four | 1 |  1     | 
+| Objective Five | 1 |  1     | 
+| Objective Six | 1 |  1     | 
+| Objective Seven | 1 |  1     | 
 
 
 ### Solution Design
@@ -41,11 +41,11 @@ Caption Here
 
 ### Supporting Artifacts
 - [Link to video technical presentation](). Not to exceed 120s
-- [Link to video demo](). Not to exceed 120s
+- Video Demo: https://drive.google.com/file/d/19QsmcVMaM6SSxlMqfbJiu507Hwc7yrzf/view?usp=share_link
 
 
 ### Modules, Tools, Source Used Including Attribution
-
+Express for communication between html and node server (https://expressjs.com/)
 ### References
 
 
