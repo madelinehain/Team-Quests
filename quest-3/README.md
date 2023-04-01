@@ -33,9 +33,15 @@ Top of Observation Page
 </p>
 <br>
 
+
 ![Q3 Bottom of ObservationPage](https://user-images.githubusercontent.com/114166327/229256046-b59049e3-7b13-44c2-ba97-7a387c12e816.jpg)
 <p align="center">
 Bottom of Observation Page
+</p>
+
+![Q3 Node Server Terminal](https://user-images.githubusercontent.com/114166327/229256343-e6f6925f-7447-43d6-9a66-dab79fa48305.JPG)
+<p align="center">
+Node Server Terminal
 </p>
 
 ### Sketches/Diagrams
