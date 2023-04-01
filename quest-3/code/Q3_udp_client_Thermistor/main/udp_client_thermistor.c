@@ -1,8 +1,9 @@
 /*
-  Maxwell Bakalos
+  Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
   EC444 Smart & Connected Systems
   Quest 3 - Cat Tracker
-  3/30/2023
+  UDP Client for Thermistor Readings
+  3/31/2023
 */
 
 // Include for UDP Client
@@ -55,9 +56,11 @@
 #define V_cc        3300     // Positive voltage going into voltage divider in milivolts
 #define table_len   29      // Length of the Resistance & temp Tables
 
+// DEFINE: LED Button //////////////////////////////////// 
+#define LED_PIN 19
 
 // GLOBAL VARIABLES: UDP Client //////////////////////////////////// 
-static const char *TAG = "example";
+static const char *TAG = "Thermistor_Client";
 // static const char *payload = "Message from ESP32 ";
 char payload[20];
 
@@ -89,6 +92,7 @@ static void udp_client_task(void *pvParameters)
     char host_ip[] = HOST_IP_ADDR;
     int addr_family = 0;
     int ip_protocol = 0;
+    // short blink_state = 0;
 
     while (1) {
 
@@ -153,6 +157,18 @@ static void udp_client_task(void *pvParameters)
                     ESP_LOGI(TAG, "Received expected message, reconnecting");
                     break;
                 }
+
+                // // ADDED CODE //////
+                // if (strncmp(rx_buffer, "BUTTON_PRESSED", 10) == 0) {
+                //     ESP_LOGI(TAG, "LED BLINKING!!!");
+                //     blink_state = !(blink_state);           // flip LED state
+                //     gpio_set_level(LED_PIN, blink_state);   // turn on/off LED
+                // }
+                // else {
+                //     ESP_LOGI(TAG, "LED OFF");
+                //     gpio_set_level(LED_PIN, 0);  // turn off LED
+                // }
+
             }
 
             vTaskDelay(2000 / portTICK_PERIOD_MS);
@@ -386,6 +402,7 @@ float resist2temp(float R_therm)
     
 }
 
+// Get Thermistor Readings & Put in Message for UDP Server
 static void thermistor_task() {
     // Initialize the Sample Index
     int sample_index = 0;
@@ -407,9 +424,9 @@ static void thermistor_task() {
 
         sample_index += 1;  // Increment Sample Index
 
-        sprintf(payload, "%d, %.3f", sample_index, temperature);
-        // sprintf(payload, "\n%d, %.3f", sample_index, temperature);
-        printf("\n%d, %.3f", sample_index, temperature);
+        // sprintf(payload, "%d, %.3f", sample_index, temperature);
+        sprintf(payload, "%d, %.3f\n", sample_index, temperature);
+        printf("%d, %.3f\n", sample_index, temperature);
 
 
         vTaskDelay(pdMS_TO_TICKS(2000)); // delay
@@ -435,6 +452,9 @@ void app_main(void)
 
     // Setup the ADC Pin Voltage Reader
     voltReadSetup();
+
+    // Initializing LED
+    gpio_set_direction(LED_PIN, GPIO_MODE_OUTPUT);
 
 //    xTaskCreate(udp_client_task, "udp_client", 4096, NULL, 5, NULL);
     xTaskCreate(udp_client_task, "udp_client", 4096, NULL, configMAX_PRIORITIES, NULL);

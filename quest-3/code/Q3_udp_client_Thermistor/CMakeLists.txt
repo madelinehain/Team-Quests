@@ -12,4 +12,4 @@ else()
 endif()
 
 include($ENV{IDF_PATH}/tools/cmake/project.cmake)
-project(udp_client)
+project(udp_client_thermistor)
