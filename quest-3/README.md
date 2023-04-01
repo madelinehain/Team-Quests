@@ -27,7 +27,16 @@ The raspberry pi is set up to stream video (ssh into the Rpi, then use the comma
 
 ### Solution Design
 
+![Q3 Top of ObservationPage](https://user-images.githubusercontent.com/114166327/229256040-9d7e125b-1543-4c3e-a0dc-282966775184.jpg)
+<p align="center">
+Top of Observation Page
+</p>
+<br>
 
+![Q3 Bottom of ObservationPage](https://user-images.githubusercontent.com/114166327/229256046-b59049e3-7b13-44c2-ba97-7a387c12e816.jpg)
+<p align="center">
+Bottom of Observation Page
+</p>
 
 ### Sketches/Diagrams
 <p align="center">
