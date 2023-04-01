@@ -38,11 +38,21 @@ Top of Observation Page
 <p align="center">
 Bottom of Observation Page
 </p>
+<br>
 
 ![Q3 Node Server Terminal](https://user-images.githubusercontent.com/114166327/229256343-e6f6925f-7447-43d6-9a66-dab79fa48305.JPG)
-<p align="center">
+
 Node Server Terminal
-</p>
+<br>
+
+![Q3 THermistor CSV output](https://user-images.githubusercontent.com/114166327/229256553-0360a6ce-5c13-4e34-8694-7cdd1182079a.JPG)
+
+<b> . . . </b>
+
+![Q3 THermistor CSV output 2](https://user-images.githubusercontent.com/114166327/229256803-4ddb5895-6f0c-4079-96a3-629092d37835.JPG)
+
+
+Thermistor CSV Output
 
 ### Sketches/Diagrams
 <p align="center">
