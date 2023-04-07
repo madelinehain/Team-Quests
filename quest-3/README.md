@@ -55,17 +55,22 @@ Node Server Terminal
 Thermistor CSV Output
 
 ### Sketches/Diagrams
+
+![Diagram1](https://user-images.githubusercontent.com/114166327/230671529-d88561ef-b610-4867-8b27-a7e09425a16a.JPG)
+
 <p align="center">
-<img src="./images/ece444.png" width="50%">
-</p>
-<p align="center">
-Caption Here
+Client-Server Diagram
 </p>
 
+![Diagram2](https://user-images.githubusercontent.com/114166327/230671641-a0544f15-793a-4c5d-b8f5-3957e484f610.JPG)
+
+<p align="center">
+Server Diagram
+</p>
 
 
 ### Supporting Artifacts
-- [Link to video technical presentation](). Not to exceed 120s
+- Technical Presentation: https://drive.google.com/file/d/1Y7Kx-8gxULcwVduJsPyMwWg7OotmvK7r/view?usp=share_link
 - Video Demo: https://drive.google.com/file/d/19QsmcVMaM6SSxlMqfbJiu507Hwc7yrzf/view?usp=share_link
 
 
