@@ -101,6 +101,16 @@ void vTask_actuateMotor();
 void vTask_readSerial();
 
 
+// Pulse Counter Function Definitions
+static void IRAM_ATTR pcnt_example_intr_handler(void *arg);
+static void pcnt_example_init(int unit);
+void IRAM_ATTR timer_group0_isr(void *para);
+static void alarm_init();
+static void timer_evt_task(void *arg);
+void pulse_counter();
+void init_wheelSpeed();
+
+
 void app_main(void)
 {
     // Create a FIFO queue for timer-based events
