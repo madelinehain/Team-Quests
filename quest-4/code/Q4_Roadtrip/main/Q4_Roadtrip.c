@@ -25,13 +25,14 @@
 static const char *TAG = "Roadtrip";
 
 
-// Macros
+// Macros: steering servo
 #define servoMinPw 750
 #define servoMaxPw 2000
 #define servoMaxDeg 90
 #define servoPwFreq 50
 #define servoPin 13
 
+// Macros: motor driver
 #define motorInitTime 5
 #define motorMinPw 900
 #define motorMaxPw 2100
@@ -39,6 +40,13 @@ static const char *TAG = "Roadtrip";
 #define motorMaxVel 100
 #define motorPwFreq 50
 #define motorPin 12
+
+// Macros: PID controller
+#define Kp 1
+#define Ki 1
+#define Kd 1
+#define maxOut 100
+#define minOut -100
 
 // DEFINE: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 #define PCNT_H_LIM_VAL      1000	// Upper Limit of pulse counter
@@ -59,16 +67,25 @@ static const char *TAG = "Roadtrip";
 #define PULSES_PER_ROTATION		6.0		// number of black regions on the wheel
 
 
-// Global Variable Definitons
+// Global Variables: servo and motor control
 char inString[8];
 int servoSetpoint = 0; // Set the servo setpoint to 0 by default
 int motorSetpoint; // Set the motor setpoint to 0 by default
+int motorSpeed;
 bool servoFlag = true; // Initialize the servo
 bool motorFlag = false;
+
+// Global Variables: PID Controller
+int error;
+int prevError = 0;
+int integral = 0;
+int derivative = 0;
+int timeStep = 500;
 
 // GLOBAL VARIABLES: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 // Global Variable for Counting Pulses
 int16_t count = 0;
+float wheel_speed;
 
 xQueueHandle pcnt_evt_queue;   // A queue to handle pulse counter events
 
@@ -99,7 +116,7 @@ void initializeMotorDriver(int time);
 void vTask_actuateServo();
 void vTask_actuateMotor();
 void vTask_readSerial();
-
+void vTask_PIDController();
 
 // Pulse Counter Function Definitions
 static void IRAM_ATTR pcnt_example_intr_handler(void *arg);
@@ -130,9 +147,10 @@ void app_main(void)
 
     // BUGGY /////////////////////////////////////////////////////
     // Set up main tasks
-    xTaskCreate(vTask_readSerial, "readSerial", 4096, NULL, configMAX_PRIORITIES-2, NULL);
-    xTaskCreate(vTask_actuateServo, "actuateServo", 4096, NULL, configMAX_PRIORITIES-3, NULL);
-    xTaskCreate(vTask_actuateMotor, "actuateMotor", 4096, NULL, configMAX_PRIORITIES-4, NULL);
+    xTaskCreate(vTask_PIDController, "PIDController", 4096, NULL, configMAX_PRIORITIES - 2, NULL);
+    xTaskCreate(vTask_readSerial, "readSerial", 4096, NULL, configMAX_PRIORITIES-3, NULL);
+    xTaskCreate(vTask_actuateServo, "actuateServo", 4096, NULL, configMAX_PRIORITIES-4, NULL);
+    xTaskCreate(vTask_actuateMotor, "actuateMotor", 4096, NULL, configMAX_PRIORITIES-5, NULL);
 
     
 }
@@ -167,7 +185,6 @@ void vTask_readSerial(){
             }
             else if(firstChar[0] == 'M'){ // Otherwise, if the first character is M...
                 motorSetpoint = atoi(val); // convert the value into a number and set it as the motor setpoint...
-                motorFlag = true; // raise the motor flag.
             }
             else{ // Otherwise...
                 printf("Give me a valid input...\n\n\n"); // Make the user ashamed that they had to get to the error checking code.
@@ -222,10 +239,10 @@ void vTask_actuateMotor(){
 
     for(;;){
         if(motorFlag){ // If the user has sent throttle directed to the motor...
-            int convertedPw = motorThrottle(motorSetpoint); // convert the input throttle given in percent to the corresponding PWM...
+            int convertedPw = motorThrottle(motorSpeed); // convert the input throttle given in percent to the corresponding PWM...
             ESP_ERROR_CHECK(mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, convertedPw)); // set the pin to the correct PWM...
-            printf("Motor throttle set to %d/100\n", motorSetpoint); // alert the user that the change of throttle has been successful...
-            if(motorSetpoint == 0){
+            printf("Motor throttle set to %d/100\n", motorSpeed); // alert the user that the change of throttle has been successful...
+            if(motorSpeed == 0){
                 if(lastSetpoint > 0){
                     ESP_ERROR_CHECK(mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, motorThrottle(-20)));
                 }
@@ -239,12 +256,35 @@ void vTask_actuateMotor(){
             }
             // printf("PWM Value: %d\n", convertedPw); // output the PWM value for debugging purposes...
             motorFlag = false; // lower the motor flag. 
-            int lastSetpoint = motorSetpoint;
+            int lastSetpoint = motorSpeed;
         }
 
         // Delay to make the ESP happy
         vTaskDelay(pdMS_TO_TICKS(10));
     }
+}
+
+void vTask_PIDController(){
+    motorSetpoint = 0; // Initialize motor setpoint at 0
+    motorSpeed = 0; // Initialize motor speed to 0
+
+    for(;;){
+        error = motorSetpoint - wheel_speed;
+        integral += error * timeStep;
+        derivative = (error - prevError) / timeStep;
+        prevError = error;
+        motorSpeed = (Kp * error) + (Ki * integral) + (Kd * derivative);
+        if(motorSpeed > maxOut){
+            motorSpeed = maxOut;
+        }
+        else if(motorSpeed < minOut){
+            motorSpeed = minOut;
+        }
+        motorFlag = true;
+        vTaskDelay(pdMS_TO_TICKS(timeStep));
+
+    }
+
 }
 
 // ~~~~~~~~~~ Helper function Definitions ~~~~~~~~~~
@@ -433,7 +473,6 @@ static void timer_evt_task(void *arg) {
 
 	int pulse_count_unit = PCNT_UNIT_0; // pulse counting unit handle
 
-	float wheel_speed;
 
     while (1) {
 
