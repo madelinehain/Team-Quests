@@ -13,6 +13,7 @@
 #include "esp_adc_cal.h"
 #include "esp_log.h"
 #include "driver/mcpwm.h"
+#include <math.h>
 //Wheel Speed
 #include "freertos/queue.h"
 #include "driver/ledc.h"
@@ -42,9 +43,9 @@ static const char *TAG = "Roadtrip";
 #define motorPin 12
 
 // Macros: PID controller
-#define Kp 1
-#define Ki 1
-#define Kd 1
+#define Kp 0.1
+#define Ki 0.1
+#define Kd 0.1
 #define maxOut 100
 #define minOut -100
 
@@ -70,17 +71,17 @@ static const char *TAG = "Roadtrip";
 // Global Variables: servo and motor control
 char inString[8];
 int servoSetpoint = 0; // Set the servo setpoint to 0 by default
-int motorSetpoint; // Set the motor setpoint to 0 by default
+float motorSetpoint; // Set the motor setpoint to 0 by default
 int motorSpeed;
 bool servoFlag = true; // Initialize the servo
 bool motorFlag = false;
 
 // Global Variables: PID Controller
-int error;
-int prevError = 0;
-int integral = 0;
-int derivative = 0;
-int timeStep = 500;
+float error;
+float prevError = 0;
+float integral = 0;
+float derivative = 0;
+float timeStep = 500;
 
 // GLOBAL VARIABLES: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 // Global Variable for Counting Pulses
@@ -273,7 +274,7 @@ void vTask_PIDController(){
         integral += error * timeStep;
         derivative = (error - prevError) / timeStep;
         prevError = error;
-        motorSpeed = (Kp * error) + (Ki * integral) + (Kd * derivative);
+        motorSpeed = (int) round((Kp * error) + (Ki * integral) + (Kd * derivative));
         if(motorSpeed > maxOut){
             motorSpeed = maxOut;
         }
