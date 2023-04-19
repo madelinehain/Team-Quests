@@ -51,12 +51,13 @@ static const char *TAG = "Roadtrip";
 
 // DEFINE: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 #define PCNT_H_LIM_VAL      1000	// Upper Limit of pulse counter
-#define PCNT_L_LIM_VAL     -10		// Lower Limit of pulse counter
+#define PCNT_L_LIM_VAL     -10      // Lower Limit of pulse counter
 #define PCNT_THRESH1_VAL    5
 #define PCNT_THRESH0_VAL   -5
-#define PCNT_INPUT_SIG_IO   4  // Pulse Input GPIO
-#define PCNT_INPUT_CTRL_IO  5  // Control GPIO HIGH=count up, LOW=count down
+#define PCNT_INPUT_SIG_IO   4   // Pulse Input GPIO
+#define PCNT_INPUT_CTRL_IO  5   // Control GPIO HIGH=count up, LOW=count down
 //#define LEDC_OUTPUT_IO      18 // Output GPIO of a sample 1 Hz pulse generator
+#define FILTER_VAL			10	// "PCNT signal filter value, counter in APB_CLK cycles. Any pulses lasting shorter than this will be ignored when the filter is enabled. "
 
 // DEFINE: Timer (Wheel Speed) /////////////////////////////////////////////////////
 #define TIMER_DIVIDER         16    //  Hardware timer clock divider
@@ -85,8 +86,8 @@ float timeStep = 500;
 
 // GLOBAL VARIABLES: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 // Global Variable for Counting Pulses
-int16_t count = 0;
-float wheel_speed;
+int16_t count = 0;  // pulse count (per sample time)
+float wheel_speed;  // speed of the wheel calculated from pulses
 
 xQueueHandle pcnt_evt_queue;   // A queue to handle pulse counter events
 
@@ -125,7 +126,7 @@ static void pcnt_example_init(int unit);
 void IRAM_ATTR timer_group0_isr(void *para);
 static void alarm_init();
 static void timer_evt_task(void *arg);
-void pulse_counter();
+void pulse_counter_task();
 void init_wheelSpeed();
 
 
@@ -144,7 +145,7 @@ void app_main(void)
 	// Timer Task
 	xTaskCreate(timer_evt_task, "timer_evt_task", 4096, NULL, configMAX_PRIORITIES, NULL);
 	// Pulse Counting Task
-	xTaskCreate(pulse_counter, "pulse_counter", 4096, NULL, configMAX_PRIORITIES-1, NULL);
+	xTaskCreate(pulse_counter_task, "pulse_counter_task", 4096, NULL, configMAX_PRIORITIES-1, NULL);
 
     // BUGGY /////////////////////////////////////////////////////
     // Set up main tasks
@@ -266,8 +267,8 @@ void vTask_actuateMotor(){
 }
 
 void vTask_PIDController(){
-    motorSetpoint = 0; // Initialize motor setpoint at 0
-    motorSpeed = 0; // Initialize motor speed to 0
+    motorSetpoint = 0;  // Initialize motor setpoint at 0
+    motorSpeed = 0;     // Initialize motor speed to 0
 
     for(;;){
         error = motorSetpoint - wheel_speed;
@@ -392,7 +393,7 @@ static void pcnt_example_init(int unit)
     pcnt_unit_config(&pcnt_config);
 
     /* Configure and enable the input filter */
-    pcnt_set_filter_value(unit, 100);
+    pcnt_set_filter_value(unit, FILTER_VAL);
     pcnt_filter_enable(unit);
 
     /* Set threshold 0 and 1 values and enable events to watch */
@@ -439,7 +440,7 @@ void IRAM_ATTR timer_group0_isr(void *para) {
     xQueueSendFromISR(timer_queue, &evt, NULL);
 }
 
-// Initialize timer 0 in group 0 for 1 sec alarm interval & auto reload
+// Initialize timer 0 in group 0 for TIMER_INTERVAL_SEC sec alarm interval & auto reload
 static void alarm_init() {
     /* Select and initialize basic parameters of the timer */
     timer_config_t config;
@@ -469,7 +470,7 @@ static void alarm_init() {
 // TASKS: Wheel Speed //////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TASK 1: Timer Task (1 second)
+// TASK: Timer (TIMER_INTERVAL_SEC second sample period)
 static void timer_evt_task(void *arg) {
 
 	int pulse_count_unit = PCNT_UNIT_0; // pulse counting unit handle
@@ -485,15 +486,18 @@ static void timer_evt_task(void *arg) {
 
         // If the event is triggered (1 second has passed)
         if (evt.flag == 1) {
-        	wheel_speed = WHEEL_CIRCUMFERENCE * (count/PULSES_PER_ROTATION);
-            printf("\nCount: %d pulses/sec,   Speed: %.4f m/s", count, wheel_speed); // Print results
+//        	wheel_speed = WHEEL_CIRCUMFERENCE * ( count / PULSES_PER_ROTATION );
+//        	wheel_speed = WHEEL_CIRCUMFERENCE * ( count / (PULSES_PER_ROTATION * TIMER_INTERVAL_SEC) );
+            // (distance/time) = (distance/rotation) * (rotation/pulses) * (pulses/sample) * (sample/time)
+        	wheel_speed = WHEEL_CIRCUMFERENCE * (1 / PULSES_PER_ROTATION) * count * (1 / TIMER_INTERVAL_SEC) ;
+            printf("\nCount: %d pulses/sec,   Speed: %.4f m/s ", count, wheel_speed); // Print results
             pcnt_counter_clear(pulse_count_unit);	// reset pulse count
         }
     }
 }
 
-// TASK 1: Pulse Counter (light)
-void pulse_counter() {
+// TASK: Pulse Counter (Wheel Speed)
+void pulse_counter_task() {
 	int pcnt_unit = PCNT_UNIT_0;	// pulse counting unit handle
 
 	/* Initialize PCNT event queue and PCNT functions */
