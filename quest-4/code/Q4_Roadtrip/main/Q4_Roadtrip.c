@@ -488,7 +488,7 @@ static void timer_evt_task(void *arg) {
 //        	wheel_speed = WHEEL_CIRCUMFERENCE * ( count / PULSES_PER_ROTATION );
 //        	wheel_speed = WHEEL_CIRCUMFERENCE * ( count / (PULSES_PER_ROTATION * TIMER_INTERVAL_SEC) );
             // (distance/time) = (distance/rotation) * (rotation/pulses) * (pulses/sample) * (sample/time)
-        	wheel_speed = WHEEL_CIRCUMFERENCE * (1 / PULSES_PER_ROTATION) * count * TIMER_INTERVAL_SEC ;
+        	wheel_speed = WHEEL_CIRCUMFERENCE * (1 / PULSES_PER_ROTATION) * count * (1 / TIMER_INTERVAL_SEC) ;
             printf("\nCount: %d pulses/sec,   Speed: %.4f m/s ", count, wheel_speed); // Print results
             pcnt_counter_clear(pulse_count_unit);	// reset pulse count
         }
