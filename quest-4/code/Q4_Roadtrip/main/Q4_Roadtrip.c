@@ -43,8 +43,8 @@ static const char *TAG = "Roadtrip";
 #define motorPin 12
 
 // Macros: PID controller
-#define Kp 1        //0.1
-#define Ki 0.001        //0.1   <-- this one makes it go crazy!!!
+#define Kp 5.0        //0.1
+#define Ki 0.01        //0.1   <-- this one makes it go crazy!!!
 #define Kd 0.1        //0.1
 #define maxOut 100
 #define minOut 0
@@ -62,7 +62,7 @@ static const char *TAG = "Roadtrip";
 // DEFINE: Timer (Wheel Speed) /////////////////////////////////////////////////////
 #define TIMER_DIVIDER         16    //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // to seconds
-#define TIMER_INTERVAL_SEC   (0.2)    // Sample Period for gathering pulses (reset every _blank_ seconds)
+#define TIMER_INTERVAL_SEC   (0.5)    // Sample Period for gathering pulses (reset every _blank_ seconds)
 #define TEST_WITH_RELOAD      1     // Testing will be done with auto reload
 
 #define WHEEL_CIRCUMFERENCE		0.22	// wheel circumference in meters
@@ -83,11 +83,13 @@ float prevError = 0;
 float integral = 0;
 float derivative = 0;
 float timeStep = 100;
+bool pidFlag = false;
 
 // GLOBAL VARIABLES: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 // Global Variable for Counting Pulses
 int16_t count = 0;  // pulse count (per sample time)
 float wheel_speed;  // speed of the wheel calculated from pulses
+float lastWheelSpeed = 0; // last wheel speed measurement
 
 xQueueHandle pcnt_evt_queue;   // A queue to handle pulse counter events
 
@@ -272,18 +274,21 @@ void vTask_PIDController(){
     motorSpeed = 0;     // Initialize motor speed to 0
 
     for(;;){
-        error = motorSetpoint - wheel_speed;
-        integral += error * timeStep;
-        derivative = (error - prevError) / timeStep / 1000;
-        prevError = error;
-        motorSpeed = (int) round((Kp * error) + (Ki * integral) + (Kd * derivative));
-        if(motorSpeed > maxOut){
-            motorSpeed = maxOut;
+        if(pidFlag){
+            error = motorSetpoint - wheel_speed;
+            integral += error * timeStep;
+            derivative = (error - prevError) / timeStep / 1000;
+            prevError = error;
+            motorSpeed = (int) round((Kp * error) + (Ki * integral) + (Kd * derivative));
+            if(motorSpeed > maxOut){
+                motorSpeed = maxOut;
+            }
+            else if(motorSpeed < minOut){
+                motorSpeed = minOut;
+            }
+            motorFlag = true;
+            lastWheelSpeed = wheel_speed;
         }
-        else if(motorSpeed < minOut){
-            motorSpeed = minOut;
-        }
-        motorFlag = true;
         vTaskDelay(pdMS_TO_TICKS(timeStep));
     }
 
@@ -501,6 +506,8 @@ static void timer_evt_task(void *arg) {
             wheel_speed = WHEEL_CIRCUMFERENCE * (1 / PULSES_PER_ROTATION) * count * (1 / TIMER_INTERVAL_SEC) ;
             printf("\nCount: %d pulses/sec,   Speed: %.4f m/s \n", count, wheel_speed); // Print results
             pcnt_counter_clear(pcnt_unit);	// reset pulse count
+            evt_timer.flag = 0; // lower timer flag
+            pidFlag = true;
         }
             
 
