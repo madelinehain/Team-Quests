@@ -43,9 +43,9 @@ static const char *TAG = "Roadtrip";
 #define motorPin 12
 
 // Macros: PID controller
-#define Kp 0.1
-#define Ki 0.1
-#define Kd 0.1
+#define Kp 1        //0.1
+#define Ki 0.001        //0.1   <-- this one makes it go crazy!!!
+#define Kd 0.1        //0.1
 #define maxOut 100
 #define minOut 0
 
@@ -57,12 +57,12 @@ static const char *TAG = "Roadtrip";
 #define PCNT_INPUT_SIG_IO   4   // Pulse Input GPIO
 #define PCNT_INPUT_CTRL_IO  5   // Control GPIO HIGH=count up, LOW=count down
 //#define LEDC_OUTPUT_IO      18 // Output GPIO of a sample 1 Hz pulse generator
-#define FILTER_VAL			3	// "PCNT signal filter value, counter in APB_CLK cycles. Any pulses lasting shorter than this will be ignored when the filter is enabled. "
+#define FILTER_VAL			50	// "PCNT signal filter value, counter in APB_CLK cycles. Any pulses lasting shorter than this will be ignored when the filter is enabled. "
 
 // DEFINE: Timer (Wheel Speed) /////////////////////////////////////////////////////
 #define TIMER_DIVIDER         16    //  Hardware timer clock divider
 #define TIMER_SCALE           (TIMER_BASE_CLK / TIMER_DIVIDER)  // to seconds
-#define TIMER_INTERVAL_SEC   (1)    // Sample test interval for the first timer (how quick it counts up)
+#define TIMER_INTERVAL_SEC   (0.2)    // Sample Period for gathering pulses (reset every _blank_ seconds)
 #define TEST_WITH_RELOAD      1     // Testing will be done with auto reload
 
 #define WHEEL_CIRCUMFERENCE		0.22	// wheel circumference in meters
@@ -126,7 +126,7 @@ static void pcnt_example_init(int unit);
 void IRAM_ATTR timer_group0_isr(void *para);
 static void alarm_init();
 static void timer_evt_task(void *arg);
-void pulse_counter_task();
+// void pulse_counter_task();
 void init_wheelSpeed();
 
 
@@ -145,7 +145,7 @@ void app_main(void)
 	// Timer Task
 	xTaskCreate(timer_evt_task, "timer_evt_task", 4096, NULL, configMAX_PRIORITIES, NULL);
 	// Pulse Counting Task
-	xTaskCreate(pulse_counter_task, "pulse_counter_task", 4096, NULL, configMAX_PRIORITIES-1, NULL);
+	// xTaskCreate(pulse_counter_task, "pulse_counter_task", 4096, NULL, configMAX_PRIORITIES-1, NULL);
 
     // BUGGY /////////////////////////////////////////////////////
     // Set up main tasks
@@ -473,68 +473,79 @@ static void alarm_init() {
 // TASK: Timer (TIMER_INTERVAL_SEC second sample period)
 static void timer_evt_task(void *arg) {
 
-	int pulse_count_unit = PCNT_UNIT_0; // pulse counting unit handle
+	// int pulse_count_unit = PCNT_UNIT_0; // pulse counting unit handle
+    int pcnt_unit = PCNT_UNIT_0;	// pulse counting unit handle
 
-
-    while (1) {
-    
-        // Create dummy structure to store structure from queue
-        timer_event_t evt;
-
-        // Transfer from queue
-        xQueueReceive(timer_queue, &evt, portMAX_DELAY);
-
-        // If the event is triggered (1 second has passed)
-        if (evt.flag == 1) {
-//        	wheel_speed = WHEEL_CIRCUMFERENCE * ( count / PULSES_PER_ROTATION );
-//        	wheel_speed = WHEEL_CIRCUMFERENCE * ( count / (PULSES_PER_ROTATION * TIMER_INTERVAL_SEC) );
-            // (distance/time) = (distance/rotation) * (rotation/pulses) * (pulses/sample) * (sample/time)
-        	wheel_speed = WHEEL_CIRCUMFERENCE * (1 / PULSES_PER_ROTATION) * count * (1 / TIMER_INTERVAL_SEC) ;
-            printf("\nCount: %d pulses/sec,   Speed: %.4f m/s \n", count, wheel_speed); // Print results
-            pcnt_counter_clear(pulse_count_unit);	// reset pulse count
-        }
-    }
-}
-
-// TASK: Pulse Counter (Wheel Speed)
-void pulse_counter_task() {
-	int pcnt_unit = PCNT_UNIT_0;	// pulse counting unit handle
-
-	/* Initialize PCNT event queue and PCNT functions */
+    /* Initialize PCNT event queue and PCNT functions */
 	pcnt_evt_queue = xQueueCreate(10, sizeof(pcnt_evt_t));
 	pcnt_example_init(pcnt_unit);
 
-	pcnt_evt_t evt;
+	pcnt_evt_t evt_pcnt;
 	portBASE_TYPE res;
-	while (1) {
-		/* Wait for the event information passed from PCNT's interrupt handler.
-		 * Once received, decode the event type and print it on the serial monitor.
-		 */
-		res = xQueueReceive(pcnt_evt_queue, &evt, 1000 / portTICK_PERIOD_MS);
-		// if (res == pdTRUE) {
-		// 	pcnt_get_counter_value(pcnt_unit, &count);
-		// 	// ESP_LOGI(TAG, "Event PCNT unit[%d]; cnt: %d", evt.unit, count);
-		// 	if (evt.status & PCNT_EVT_THRES_1) {
-		// 		// ESP_LOGI(TAG, "THRES1 EVT");
-		// 	}
-		// 	if (evt.status & PCNT_EVT_THRES_0) {
-		// 		// ESP_LOGI(TAG, "THRES0 EVT");
-		// 	}
-		// 	if (evt.status & PCNT_EVT_L_LIM) {
-		// 		// ESP_LOGI(TAG, "L_LIM EVT");
-		// 	}
-		// 	if (evt.status & PCNT_EVT_H_LIM) {
-		// 		// ESP_LOGI(TAG, "H_LIM EVT");
-		// 	}
-		// 	if (evt.status & PCNT_EVT_ZERO) {
-		// 		// ESP_LOGI(TAG, "ZERO EVT");
-		// 	}
-		// } else {
-		// 	pcnt_get_counter_value(pcnt_unit, &count);
-		// 	// ESP_LOGI(TAG, "Current counter value :%d", count);
-		// }
-	}
+
+    // Create dummy structure to store structure from queue
+    timer_event_t evt_timer;
+
+    while (1) {
+
+        res = xQueueReceive(pcnt_evt_queue, &evt_pcnt, 1000 / portTICK_PERIOD_MS);
+
+        // Transfer from queue
+        xQueueReceive(timer_queue, &evt_timer, portMAX_DELAY);
+
+        // If the Calculate Speed event is triggered (1 second has passed)
+        if (evt_timer.flag == 1) {
+            pcnt_get_counter_value(pcnt_unit, &count); // get the current pulse count
+            // Calculate the Speed
+            // (distance/time) = (distance/rotation) * (rotation/pulses) * (pulses/sample) * (sample/time)
+            wheel_speed = WHEEL_CIRCUMFERENCE * (1 / PULSES_PER_ROTATION) * count * (1 / TIMER_INTERVAL_SEC) ;
+            printf("\nCount: %d pulses/sec,   Speed: %.4f m/s \n", count, wheel_speed); // Print results
+            pcnt_counter_clear(pcnt_unit);	// reset pulse count
+        }
+            
+
+    }
 }
+
+// // TASK: Pulse Counter (Wheel Speed)
+// void pulse_counter_task() {
+// 	int pcnt_unit = PCNT_UNIT_0;	// pulse counting unit handle
+
+// 	/* Initialize PCNT event queue and PCNT functions */
+// 	pcnt_evt_queue = xQueueCreate(10, sizeof(pcnt_evt_t));
+// 	pcnt_example_init(pcnt_unit);
+
+// 	pcnt_evt_t evt;
+// 	portBASE_TYPE res;
+// 	while (1) {
+// 		/* Wait for the event information passed from PCNT's interrupt handler.
+// 		 * Once received, decode the event type and print it on the serial monitor.
+// 		 */
+// 		res = xQueueReceive(pcnt_evt_queue, &evt, 1000 / portTICK_PERIOD_MS);
+// 		if (res == pdTRUE) {
+// 			pcnt_get_counter_value(pcnt_unit, &count);
+// 			// ESP_LOGI(TAG, "Event PCNT unit[%d]; cnt: %d", evt.unit, count);
+// 			if (evt.status & PCNT_EVT_THRES_1) {
+// 				// ESP_LOGI(TAG, "THRES1 EVT");
+// 			}
+// 			if (evt.status & PCNT_EVT_THRES_0) {
+// 				// ESP_LOGI(TAG, "THRES0 EVT");
+// 			}
+// 			if (evt.status & PCNT_EVT_L_LIM) {
+// 				// ESP_LOGI(TAG, "L_LIM EVT");
+// 			}
+// 			if (evt.status & PCNT_EVT_H_LIM) {
+// 				// ESP_LOGI(TAG, "H_LIM EVT");
+// 			}
+// 			if (evt.status & PCNT_EVT_ZERO) {
+// 				// ESP_LOGI(TAG, "ZERO EVT");
+// 			}
+// 		} else {
+// 			pcnt_get_counter_value(pcnt_unit, &count);
+// 			// ESP_LOGI(TAG, "Current counter value :%d", count);
+// 		}
+// 	}
+// }
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
