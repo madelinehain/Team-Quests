@@ -266,8 +266,8 @@ void vTask_actuateMotor(){
 }
 
 void vTask_PIDController(){
-    motorSetpoint = 0; // Initialize motor setpoint at 0
-    motorSpeed = 0; // Initialize motor speed to 0
+    motorSetpoint = 0;  // Initialize motor setpoint at 0
+    motorSpeed = 0;     // Initialize motor speed to 0
 
     for(;;){
         error = motorSetpoint - wheel_speed;
