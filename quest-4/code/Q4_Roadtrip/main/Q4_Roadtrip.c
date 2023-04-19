@@ -47,7 +47,7 @@ static const char *TAG = "Roadtrip";
 #define Ki 0.1
 #define Kd 0.1
 #define maxOut 100
-#define minOut -100
+#define minOut 0
 
 // DEFINE: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 #define PCNT_H_LIM_VAL      1000	// Upper Limit of pulse counter
@@ -57,7 +57,7 @@ static const char *TAG = "Roadtrip";
 #define PCNT_INPUT_SIG_IO   4   // Pulse Input GPIO
 #define PCNT_INPUT_CTRL_IO  5   // Control GPIO HIGH=count up, LOW=count down
 //#define LEDC_OUTPUT_IO      18 // Output GPIO of a sample 1 Hz pulse generator
-#define FILTER_VAL			10	// "PCNT signal filter value, counter in APB_CLK cycles. Any pulses lasting shorter than this will be ignored when the filter is enabled. "
+#define FILTER_VAL			3	// "PCNT signal filter value, counter in APB_CLK cycles. Any pulses lasting shorter than this will be ignored when the filter is enabled. "
 
 // DEFINE: Timer (Wheel Speed) /////////////////////////////////////////////////////
 #define TIMER_DIVIDER         16    //  Hardware timer clock divider
@@ -65,7 +65,7 @@ static const char *TAG = "Roadtrip";
 #define TIMER_INTERVAL_SEC   (1)    // Sample test interval for the first timer (how quick it counts up)
 #define TEST_WITH_RELOAD      1     // Testing will be done with auto reload
 
-#define WHEEL_CIRCUMFERENCE		0.62	// wheel circumference in meters
+#define WHEEL_CIRCUMFERENCE		0.22	// wheel circumference in meters
 #define PULSES_PER_ROTATION		6.0		// number of black regions on the wheel
 
 
@@ -82,7 +82,7 @@ float error;
 float prevError = 0;
 float integral = 0;
 float derivative = 0;
-float timeStep = 500;
+float timeStep = 100;
 
 // GLOBAL VARIABLES: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 // Global Variable for Counting Pulses
@@ -149,7 +149,7 @@ void app_main(void)
 
     // BUGGY /////////////////////////////////////////////////////
     // Set up main tasks
-    xTaskCreate(vTask_PIDController, "PIDController", 4096, NULL, configMAX_PRIORITIES - 2, NULL);
+    xTaskCreate(vTask_PIDController, "PIDController", 4096, NULL, configMAX_PRIORITIES, NULL);
     xTaskCreate(vTask_readSerial, "readSerial", 4096, NULL, configMAX_PRIORITIES-3, NULL);
     xTaskCreate(vTask_actuateServo, "actuateServo", 4096, NULL, configMAX_PRIORITIES-4, NULL);
     xTaskCreate(vTask_actuateMotor, "actuateMotor", 4096, NULL, configMAX_PRIORITIES-5, NULL);
@@ -186,7 +186,8 @@ void vTask_readSerial(){
                 servoFlag = true; // raise the servo flag.
             }
             else if(firstChar[0] == 'M'){ // Otherwise, if the first character is M...
-                motorSetpoint = atoi(val); // convert the value into a number and set it as the motor setpoint...
+                motorSetpoint = atof(val); // convert the value into a number and set it as the motor setpoint...
+                printf("~~~~~ USER SET SPEED IN m/s: %f\n", motorSetpoint);
             }
             else{ // Otherwise...
                 printf("Give me a valid input...\n\n\n"); // Make the user ashamed that they had to get to the error checking code.
@@ -273,7 +274,7 @@ void vTask_PIDController(){
     for(;;){
         error = motorSetpoint - wheel_speed;
         integral += error * timeStep;
-        derivative = (error - prevError) / timeStep;
+        derivative = (error - prevError) / timeStep / 1000;
         prevError = error;
         motorSpeed = (int) round((Kp * error) + (Ki * integral) + (Kd * derivative));
         if(motorSpeed > maxOut){
@@ -284,7 +285,6 @@ void vTask_PIDController(){
         }
         motorFlag = true;
         vTaskDelay(pdMS_TO_TICKS(timeStep));
-
     }
 
 }
@@ -477,7 +477,7 @@ static void timer_evt_task(void *arg) {
 
 
     while (1) {
-
+    
         // Create dummy structure to store structure from queue
         timer_event_t evt;
 
@@ -490,7 +490,7 @@ static void timer_evt_task(void *arg) {
 //        	wheel_speed = WHEEL_CIRCUMFERENCE * ( count / (PULSES_PER_ROTATION * TIMER_INTERVAL_SEC) );
             // (distance/time) = (distance/rotation) * (rotation/pulses) * (pulses/sample) * (sample/time)
         	wheel_speed = WHEEL_CIRCUMFERENCE * (1 / PULSES_PER_ROTATION) * count * (1 / TIMER_INTERVAL_SEC) ;
-            printf("\nCount: %d pulses/sec,   Speed: %.4f m/s ", count, wheel_speed); // Print results
+            printf("\nCount: %d pulses/sec,   Speed: %.4f m/s \n", count, wheel_speed); // Print results
             pcnt_counter_clear(pulse_count_unit);	// reset pulse count
         }
     }
@@ -511,28 +511,28 @@ void pulse_counter_task() {
 		 * Once received, decode the event type and print it on the serial monitor.
 		 */
 		res = xQueueReceive(pcnt_evt_queue, &evt, 1000 / portTICK_PERIOD_MS);
-		if (res == pdTRUE) {
-			pcnt_get_counter_value(pcnt_unit, &count);
-			ESP_LOGI(TAG, "Event PCNT unit[%d]; cnt: %d", evt.unit, count);
-			if (evt.status & PCNT_EVT_THRES_1) {
-				ESP_LOGI(TAG, "THRES1 EVT");
-			}
-			if (evt.status & PCNT_EVT_THRES_0) {
-				ESP_LOGI(TAG, "THRES0 EVT");
-			}
-			if (evt.status & PCNT_EVT_L_LIM) {
-				ESP_LOGI(TAG, "L_LIM EVT");
-			}
-			if (evt.status & PCNT_EVT_H_LIM) {
-				ESP_LOGI(TAG, "H_LIM EVT");
-			}
-			if (evt.status & PCNT_EVT_ZERO) {
-				ESP_LOGI(TAG, "ZERO EVT");
-			}
-		} else {
-			pcnt_get_counter_value(pcnt_unit, &count);
-			ESP_LOGI(TAG, "Current counter value :%d", count);
-		}
+		// if (res == pdTRUE) {
+		// 	pcnt_get_counter_value(pcnt_unit, &count);
+		// 	// ESP_LOGI(TAG, "Event PCNT unit[%d]; cnt: %d", evt.unit, count);
+		// 	if (evt.status & PCNT_EVT_THRES_1) {
+		// 		// ESP_LOGI(TAG, "THRES1 EVT");
+		// 	}
+		// 	if (evt.status & PCNT_EVT_THRES_0) {
+		// 		// ESP_LOGI(TAG, "THRES0 EVT");
+		// 	}
+		// 	if (evt.status & PCNT_EVT_L_LIM) {
+		// 		// ESP_LOGI(TAG, "L_LIM EVT");
+		// 	}
+		// 	if (evt.status & PCNT_EVT_H_LIM) {
+		// 		// ESP_LOGI(TAG, "H_LIM EVT");
+		// 	}
+		// 	if (evt.status & PCNT_EVT_ZERO) {
+		// 		// ESP_LOGI(TAG, "ZERO EVT");
+		// 	}
+		// } else {
+		// 	pcnt_get_counter_value(pcnt_unit, &count);
+		// 	// ESP_LOGI(TAG, "Current counter value :%d", count);
+		// }
 	}
 }
 
