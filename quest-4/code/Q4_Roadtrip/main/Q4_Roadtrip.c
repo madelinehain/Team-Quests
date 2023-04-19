@@ -14,6 +14,7 @@
 #include "esp_log.h"
 #include "driver/mcpwm.h"
 #include <math.h>
+#include "alphanumTable.h"
 //Wheel Speed
 #include "freertos/queue.h"
 #include "driver/ledc.h"
@@ -44,10 +45,37 @@ static const char *TAG = "Roadtrip";
 
 // Macros: PID controller
 #define Kp 5.0        //0.1
-#define Ki 0.01        //0.1   <-- this one makes it go crazy!!!
+#define Ki 0.02        //0.1   <-- this one makes it go crazy!!!
 #define Kd 0.1        //0.1
 #define maxOut 100
 #define minOut 0
+
+// Macros: alphanumeric display
+#define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
+#define SAMPLING_RATE   64          //Multisampling
+#define SAMPLING_PERIOD 1        //Sampling period, in seconds
+
+// 14-Segment Display
+#define SLAVE_ADDR                         0x70 // alphanumeric address
+#define OSC                                0x21 // oscillator cmd
+#define HT16K33_BLINK_DISPLAYON            0x01 // Display on cmd
+#define HT16K33_BLINK_OFF                  0    // Blink off cmd
+#define HT16K33_BLINK_CMD                  0x80 // Blink cmd
+#define HT16K33_CMD_BRIGHTNESS             0xE0 // Brightness cmd
+
+// Master I2C
+#define I2C_EXAMPLE_MASTER_SCL_IO          22   // gpio number for i2c clk
+#define I2C_EXAMPLE_MASTER_SDA_IO          23   // gpio number for i2c data
+#define I2C_EXAMPLE_MASTER_NUM             I2C_NUM_0  // i2c port
+#define I2C_EXAMPLE_MASTER_TX_BUF_DISABLE  0    // i2c master no buffer needed
+#define I2C_EXAMPLE_MASTER_RX_BUF_DISABLE  0    // i2c master no buffer needed
+#define I2C_EXAMPLE_MASTER_FREQ_HZ         100000     // i2c master clock freq
+#define WRITE_BIT                          I2C_MASTER_WRITE // i2c master write
+#define READ_BIT                           I2C_MASTER_READ  // i2c master read
+#define ACK_CHECK_EN                       true // i2c master will check ack
+#define ACK_CHECK_DIS                      false// i2c master will not check ack
+#define ACK_VAL                            0x00 // i2c ack value
+#define NACK_VAL                           0xFF // i2c nack value
 
 // DEFINE: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 #define PCNT_H_LIM_VAL      1000	// Upper Limit of pulse counter
@@ -85,6 +113,12 @@ float derivative = 0;
 float timeStep = 100;
 bool pidFlag = false;
 
+// Global Variables: alphanumeric display
+char inString[8];
+char lastString[8];
+bool writeAlphaFlag = false;
+int distance;
+
 // GLOBAL VARIABLES: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 // Global Variable for Counting Pulses
 int16_t count = 0;  // pulse count (per sample time)
@@ -116,11 +150,19 @@ int servoDegToPw(int angle);
 int motorThrottle(int level);
 void initializeMotorDriver(int time);
 
+static void i2c_example_master_init();
+int testConnection(uint8_t devAddr, int32_t timeout);
+static void i2c_scanner();
+int alpha_oscillator();
+int no_blink();
+int set_brightness_max(uint8_t val);
+
 // Task Function Definitions
 void vTask_actuateServo();
 void vTask_actuateMotor();
 void vTask_readSerial();
 void vTask_PIDController();
+void vTask_writeToAlphanum();
 
 // Pulse Counter Function Definitions
 static void IRAM_ATTR pcnt_example_intr_handler(void *arg);
@@ -134,6 +176,11 @@ void init_wheelSpeed();
 
 void app_main(void)
 {
+    // Initialize alphanumeric display
+    i2c_example_master_init();
+    i2c_scanner();
+    xTaskCreate(vTask_writeToAlphanum, "writeToAlphanum", 4096, NULL, configMAX_PRIORITIES-2, NULL);
+
     // Create a FIFO queue for timer-based events
 	timer_queue = xQueueCreate(10, sizeof(timer_event_t));
 
@@ -294,12 +341,69 @@ void vTask_PIDController(){
 
 }
 
+// writeToAlphanum: Takes an input and writes it to the alphanumeric display
+void vTask_writeToAlphanum() {
+    // Debug
+    int ret;
+
+    // Set up routines
+    // Turn on alpha oscillator
+    ret = alpha_oscillator();
+    // Set display blink off
+    ret = no_blink();
+    ret = set_brightness_max(0xF);
+
+    // Write to characters to buffer
+    uint16_t displaybuffer[8];
+    displaybuffer[0] = 0;
+    displaybuffer[1] = 0;
+    displaybuffer[2] = 0;
+    displaybuffer[3] = 0;
+    uint16_t decimalPoint = 0b0100000000000000;
+
+    // Continually writes the same command
+    while (1) {
+      int ascii;
+      int buffiterator = alphafonttable[32];
+      size_t bufseclength = 8;
+      if(writeAlphaFlag){
+        for(int i = 0; i < 4; i++){
+          displaybuffer[i] = 0b00000000000000000;
+        }
+        for(int i = 0; i < sizeof(inString)/sizeof(inString[0]); i++){
+          ascii = inString[i];
+          if(inString[i] != '.'){
+            displaybuffer[buffiterator] = alphafonttable[ascii];
+            buffiterator++;
+          }
+          else if(inString[i] == '.'){
+            displaybuffer[buffiterator - 1] = (displaybuffer[buffiterator - 1] | decimalPoint);
+          }
+        }
+        // Send commands characters to display over I2C
+        i2c_cmd_handle_t cmd4 = i2c_cmd_link_create();
+        i2c_master_start(cmd4);
+        i2c_master_write_byte(cmd4, ( SLAVE_ADDR << 1 ) | WRITE_BIT, ACK_CHECK_EN);
+        i2c_master_write_byte(cmd4, (uint8_t)0x00, ACK_CHECK_EN);
+        i2c_master_write(cmd4, displaybuffer, bufseclength, ACK_CHECK_EN);
+        i2c_master_stop(cmd4);
+        ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd4, 1000 / portTICK_RATE_MS);
+        i2c_cmd_link_delete(cmd4);
+        writeAlphaFlag = false;
+      }
+      vTaskDelay(pdMS_TO_TICKS(10));
+    }
+}
 // ~~~~~~~~~~ Helper function Definitions ~~~~~~~~~~
+
+// ~~~~~ Servo ~~~~~
 
 // servoDegToPw: Converts an input angle into the appropriate PWM to actuate the servo
 int servoDegToPw(int angle){
     return (angle + servoMaxDeg) * (servoMaxPw - servoMinPw) / (2 * servoMaxDeg) + servoMinPw;
 }
+
+// ~~~~~ Motor ~~~~~
 
 // motorThrottle: Converts a throttle percentage (range: 0-motorMaxVel) to a PWM to actuate the ECS
 int motorThrottle(int level){
@@ -328,11 +432,15 @@ void initializeMotorDriver(int time){
     // Print statement to instruct the user to turn on the buggy at the appropriate time]
     vTaskDelay(pdMS_TO_TICKS(1000));
     printf("\n\nInitializing MOTOR DRIVER...\n");
+    sprintf(inString, "INIT");
+    writeAlphaFlag = true;
     vTaskDelay(pdMS_TO_TICKS(1000));
 
     printf("Please power the buggy on in\n");
     for(int i = 3; i > 0; i--){
         printf("%d...\n", i);
+        sprintf(inString, "%d...", (uint8_t)i);
+        writeAlphaFlag = true;
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
@@ -346,9 +454,119 @@ void initializeMotorDriver(int time){
 
     // Print statement to guide the user through the process
     printf("Motor Driver Initialized.\n");
+    sprintf(inString, "REDY");
+    writeAlphaFlag = true;
 }
 
+// ~~~~~ alphanumeric display ~~~~~
 
+// Function to initiate i2c -- note the MSB declaration!
+static void i2c_example_master_init(){
+    // Debug
+    // printf("\n>> i2c Config\n");
+    int err;
+
+    // Port configuration
+    int i2c_master_port = I2C_EXAMPLE_MASTER_NUM;
+
+    /// Define I2C configurations
+    i2c_config_t conf;
+    conf.mode = I2C_MODE_MASTER;                              // Master mode
+    conf.sda_io_num = I2C_EXAMPLE_MASTER_SDA_IO;              // Default SDA pin
+    conf.sda_pullup_en = GPIO_PULLUP_ENABLE;                  // Internal pullup
+    conf.scl_io_num = I2C_EXAMPLE_MASTER_SCL_IO;              // Default SCL pin
+    conf.scl_pullup_en = GPIO_PULLUP_ENABLE;                  // Internal pullup
+    conf.master.clk_speed = I2C_EXAMPLE_MASTER_FREQ_HZ;       // CLK frequency
+    conf.clk_flags = 0;                                     // <-- UNCOMMENT IF YOU GET ERRORS (see readme.md)
+    err = i2c_param_config(i2c_master_port, &conf);           // Configure
+    // if (err == ESP_OK) {printf("- parameters: ok\n");}
+
+    // Install I2C driver
+    err = i2c_driver_install(i2c_master_port, conf.mode,
+                       I2C_EXAMPLE_MASTER_RX_BUF_DISABLE,
+                       I2C_EXAMPLE_MASTER_TX_BUF_DISABLE, 0);
+    // i2c_set_data_mode(i2c_master_port,I2C_DATA_MODE_LSB_FIRST,I2C_DATA_MODE_LSB_FIRST);
+    // if (err == ESP_OK) {printf("- initialized: yes\n\n");}
+
+    // Dat in MSB mode
+    i2c_set_data_mode(i2c_master_port, I2C_DATA_MODE_MSB_FIRST, I2C_DATA_MODE_MSB_FIRST);
+}
+
+// Utility  Functions //////////////////////////////////////////////////////////
+
+// Utility function to test for I2C device address -- not used in deploy
+int testConnection(uint8_t devAddr, int32_t timeout) {
+    i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+    i2c_master_start(cmd);
+    i2c_master_write_byte(cmd, (devAddr << 1) | I2C_MASTER_WRITE, ACK_CHECK_EN);
+    i2c_master_stop(cmd);
+    int err = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+    i2c_cmd_link_delete(cmd);
+    return err;
+}
+
+// Utility function to scan for i2c device
+static void i2c_scanner() {
+    int32_t scanTimeout = 1000;
+    // printf("\n>> I2C scanning ..."  "\n");
+    uint8_t count = 0;
+    for (uint8_t i = 1; i < 127; i++) {
+        // printf("0x%X%s",i,"\n");
+        if (testConnection(i, scanTimeout) == ESP_OK) {
+            // printf( "- Device found at address: 0x%X%s", i, "\n");
+            count++;
+        }
+    }
+    if (count == 0)
+        // printf("- No I2C devices found!" "\n");
+    printf("\n");
+}
+
+////////////////////////////////////////////////////////////////////////////////
+
+// Alphanumeric Functions //////////////////////////////////////////////////////
+
+// Turn on oscillator for alpha display
+int alpha_oscillator() {
+  int ret;
+  i2c_cmd_handle_t cmd = i2c_cmd_link_create();
+  i2c_master_start(cmd);
+  i2c_master_write_byte(cmd, ( SLAVE_ADDR << 1 ) | WRITE_BIT, ACK_CHECK_EN);
+  i2c_master_write_byte(cmd, OSC, ACK_CHECK_EN);
+  i2c_master_stop(cmd);
+  ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd, 1000 / portTICK_RATE_MS);
+  i2c_cmd_link_delete(cmd);
+  vTaskDelay(200 / portTICK_RATE_MS);
+  return ret;
+}
+
+// Set blink rate to off
+int no_blink() {
+  int ret;
+  i2c_cmd_handle_t cmd2 = i2c_cmd_link_create();
+  i2c_master_start(cmd2);
+  i2c_master_write_byte(cmd2, ( SLAVE_ADDR << 1 ) | WRITE_BIT, ACK_CHECK_EN);
+  i2c_master_write_byte(cmd2, HT16K33_BLINK_CMD | HT16K33_BLINK_DISPLAYON | (HT16K33_BLINK_OFF << 1), ACK_CHECK_EN);
+  i2c_master_stop(cmd2);
+  ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd2, 1000 / portTICK_RATE_MS);
+  i2c_cmd_link_delete(cmd2);
+  vTaskDelay(200 / portTICK_RATE_MS);
+  return ret;
+}
+
+// Set Brightness
+int set_brightness_max(uint8_t val) {
+  int ret;
+  i2c_cmd_handle_t cmd3 = i2c_cmd_link_create();
+  i2c_master_start(cmd3);
+  i2c_master_write_byte(cmd3, ( SLAVE_ADDR << 1 ) | WRITE_BIT, ACK_CHECK_EN);
+  i2c_master_write_byte(cmd3, HT16K33_CMD_BRIGHTNESS | val, ACK_CHECK_EN);
+  i2c_master_stop(cmd3);
+  ret = i2c_master_cmd_begin(I2C_EXAMPLE_MASTER_NUM, cmd3, 1000 / portTICK_RATE_MS);
+  i2c_cmd_link_delete(cmd3);
+  vTaskDelay(200 / portTICK_RATE_MS);
+  return ret;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 // FUNCTIONS: Pulse Counter (Wheel Speed) //////////////////////////////////////////////////////////////
@@ -507,6 +725,8 @@ static void timer_evt_task(void *arg) {
             printf("\nCount: %d pulses/sec,   Speed: %.4f m/s \n", count, wheel_speed); // Print results
             pcnt_counter_clear(pcnt_unit);	// reset pulse count
             evt_timer.flag = 0; // lower timer flag
+            sprintf(inString, "%1.3f", wheel_speed);
+            writeAlphaFlag = true;
             pidFlag = true;
         }
             
