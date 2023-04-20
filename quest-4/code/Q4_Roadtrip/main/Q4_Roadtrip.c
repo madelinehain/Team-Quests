@@ -130,6 +130,9 @@ static const char *TAG = "Roadtrip";
 
 #define PORT CONFIG_EXAMPLE_PORT
 
+//LED "START?STOP? Indicator Button
+#define LED_PIN 19"
+
 // Global Variables: servo and motor control
 char inString[8];
 int servoSetpoint = 0; // Set the servo setpoint to 0 by default
@@ -337,25 +340,29 @@ void vTask_actuateMotor(){
         if (strncmp(rx_buffer, "START", 5) == 0) {
             // Start Using the Motor
             motorSetpoint = 0.35;
-            ESP_LOGI(TAG, "--> START!!!");
+            gpio_set_level(LED_PIN, 1); // turn on LED
+            // ESP_LOGI(TAG, "--> START!!!");
         }
         // If the STOP button has been clicked
         else if (strncmp(rx_buffer, "STOP", 4) == 0) {
             // Stop the Motor
             motorSetpoint = 0.0;
-            ESP_LOGI(TAG, "--> STOP!!!");
+            gpio_set_level(LED_PIN, 0); // turn off LED
+            // ESP_LOGI(TAG, "--> STOP!!!");
         }
         // If the EMERGENCY STOP button has been clicked
         else if (strncmp(rx_buffer, "EMERGENCY_STOP", 14) == 0) {
             // Stop the Motor
             motorSetpoint = 0.0;
-            ESP_LOGI(TAG, "--> EMERGENCY STOP!!!!!");
+            gpio_set_level(LED_PIN, 0); // turn off LED
+            // ESP_LOGI(TAG, "--> EMERGENCY STOP!!!!!");
         }
         // If some other message is being sent other than "START", "STOP", or "EMERGENCY STOP"
         else {
             // Stop the Motor
             motorSetpoint = 0.0;
-            ESP_LOGI(TAG, "--> Unknown Message");
+            gpio_set_level(LED_PIN, 0); // turn off LED
+            // ESP_LOGI(TAG, "--> Unknown Message");
         }
 
         if(motorFlag){ // If the user has sent throttle directed to the motor...
@@ -1010,6 +1017,8 @@ void initial_setup() {
      * examples/protocols/README.md for more information about this function.
      */
     ESP_ERROR_CHECK(example_connect());
+
+    gpio_set_direction(LED_PIN, GPIO_MODE_OUTPUT);
     
     sprintf(inString, "REDY");
     writeAlphaFlag = true;
