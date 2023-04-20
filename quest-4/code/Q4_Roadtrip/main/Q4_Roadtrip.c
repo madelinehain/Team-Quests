@@ -544,8 +544,6 @@ void initializeMotorDriver(int time){
 
     // Print statement to guide the user through the process
     printf("Motor Driver Initialized.\n");
-    sprintf(inString, "REDY");
-    writeAlphaFlag = true;
 }
 
 // ~~~~~ alphanumeric display ~~~~~
@@ -990,6 +988,14 @@ static void udp_client_task(void *pvParameters)
 
 // Initialization
 void initial_setup() {
+    // ALPHANUMERIC DISPLAY ///////////////////////
+    // Initiate Alphanumeric Display
+    setup_alpha_display();
+
+    // BUGGY //////////////////////////////////////
+    // Initialize the motor driver
+    initializeMotorDriver(motorInitTime);
+
     // WHEEL SPEED /////////////////////////////////
 	// Initiate alarm using timer API
 	alarm_init();
@@ -1004,12 +1010,9 @@ void initial_setup() {
      * examples/protocols/README.md for more information about this function.
      */
     ESP_ERROR_CHECK(example_connect());
-
-    // ALPHANUMERIC DISPLAY ///////////////////////
-    // Initiate Alphanumeric Display
-    setup_alpha_display();
-
-    // BUGGY //////////////////////////////////////
-    // Initialize the motor driver
-    initializeMotorDriver(motorInitTime);
+    
+    sprintf(inString, "REDY");
+    writeAlphaFlag = true;
+    printf("Initialization Sequence Complete.\n");
+    vTaskDelay(pdMS_TO_TICKS(1000));
 }
