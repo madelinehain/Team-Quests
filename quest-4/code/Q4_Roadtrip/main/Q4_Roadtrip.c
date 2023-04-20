@@ -14,8 +14,8 @@
 #include "esp_log.h"
 #include "driver/mcpwm.h"
 #include <math.h>
-#include "alphanumTable.h"
-//Wheel Speed
+#include "alphanumTable.h" // Alphanumeric Display
+// Wheel Speed
 #include "freertos/queue.h"
 #include "driver/ledc.h"
 #include "driver/pcnt.h"
@@ -23,6 +23,19 @@
 #include "esp_types.h"			// timer
 #include "driver/periph_ctrl.h" // timer
 #include "driver/timer.h" 		// timer
+// UDP Client
+#include <sys/param.h>
+#include "freertos/event_groups.h"
+#include "esp_system.h"
+#include "esp_event.h"
+#include "nvs_flash.h"
+#include "esp_netif.h"
+#include "protocol_examples_common.h"
+#include "lwip/err.h"
+#include "lwip/sockets.h"
+#include "lwip/sys.h"
+#include <lwip/netdb.h>
+
 
 static const char *TAG = "Roadtrip";
 
@@ -102,6 +115,20 @@ static const char *TAG = "Roadtrip";
 #define WHEEL_CIRCUMFERENCE		0.22	// wheel circumference in meters
 #define PULSES_PER_ROTATION		6.0		// number of black regions on the wheel
 
+// DEFINE: UDP Client //////////////////////////////////// 
+#ifdef CONFIG_EXAMPLE_SOCKET_IP_INPUT_STDIN
+#include "addr_from_stdin.h"
+#endif
+
+#if defined(CONFIG_EXAMPLE_IPV4)
+#define HOST_IP_ADDR CONFIG_EXAMPLE_IPV4_ADDR
+#elif defined(CONFIG_EXAMPLE_IPV6)
+#define HOST_IP_ADDR CONFIG_EXAMPLE_IPV6_ADDR
+#else
+#define HOST_IP_ADDR ""
+#endif
+
+#define PORT CONFIG_EXAMPLE_PORT
 
 // Global Variables: servo and motor control
 char inString[8];
@@ -153,6 +180,11 @@ typedef struct {
 // Initialize queue handler for timer-based events
 xQueueHandle timer_queue;
 
+// GLOBAL VARIABLES: UDP Client //////////////////////////////////// 
+// static const char *payload = "Message from ESP32 ";
+char payload[20];       // mesage from ESP32 -> Server
+char rx_buffer[128];    // Message from Server -> ESP32
+
 
 // Helper function declarations
 int servoDegToPw(int angle);
@@ -166,6 +198,13 @@ int alpha_oscillator();
 int no_blink();
 int set_brightness_max(uint8_t val);
 
+// Pulse Counter Function Definitions
+static void IRAM_ATTR pcnt_example_intr_handler(void *arg);
+static void pcnt_example_init(int unit);
+void IRAM_ATTR timer_group0_isr(void *para);
+static void alarm_init();
+void initial_setup();
+
 void writeToRegister(uint8_t lidarAddr, uint8_t reg, uint8_t data);
 uint16_t readRegister(uint8_t lidarAddr, uint8_t reg);
 
@@ -175,46 +214,36 @@ void vTask_actuateMotor();
 void vTask_readSerial();
 void vTask_PIDController();
 void vTask_writeToAlphanum();
+static void wheel_speed_task(void *arg);
+static void udp_client_task(void *pvParameters);
 void vTask_readLidar();
-
-// Pulse Counter Function Definitions
-static void IRAM_ATTR pcnt_example_intr_handler(void *arg);
-static void pcnt_example_init(int unit);
-void IRAM_ATTR timer_group0_isr(void *para);
-static void alarm_init();
-static void timer_evt_task(void *arg);
-// void pulse_counter_task();
-void init_wheelSpeed();
 
 
 void app_main(void)
 {
-    // Initialize alphanumeric display
-    i2c_example_master_init();
-    i2c_scanner();
-    xTaskCreate(vTask_writeToAlphanum, "writeToAlphanum", 4096, NULL, configMAX_PRIORITIES-2, NULL);
 
     // Create a FIFO queue for timer-based events
 	timer_queue = xQueueCreate(10, sizeof(timer_event_t));
 
-    // Initialize the motor driver
-    initializeMotorDriver(motorInitTime);
+    // Initialize Everything ~*~*~*~*~
+    initial_setup();
 
-    // Initialize Wheel Speed Stuff
-    init_wheelSpeed();
+    // UDP CLIENT START/STOP /////////////////////////////////////////////////////
+    // Wireless Communication
+    xTaskCreate(udp_client_task, "udp_client", 4096, NULL, configMAX_PRIORITIES, NULL);
 
     // WHEEL SPEED /////////////////////////////////////////////////////
 	// Timer Task
-	xTaskCreate(timer_evt_task, "timer_evt_task", 4096, NULL, configMAX_PRIORITIES, NULL);
-	// Pulse Counting Task
-	// xTaskCreate(pulse_counter_task, "pulse_counter_task", 4096, NULL, configMAX_PRIORITIES-1, NULL);
+	xTaskCreate(wheel_speed_task, "wheel_speed", 4096, NULL, configMAX_PRIORITIES-1, NULL);
 
     // BUGGY /////////////////////////////////////////////////////
-    // Set up main tasks
-    xTaskCreate(vTask_PIDController, "PIDController", 4096, NULL, configMAX_PRIORITIES, NULL);
+    // Main tasks
+    xTaskCreate(vTask_PIDController, "PIDController", 4096, NULL, configMAX_PRIORITIES-2, NULL);
     xTaskCreate(vTask_readSerial, "readSerial", 4096, NULL, configMAX_PRIORITIES-3, NULL);
     xTaskCreate(vTask_actuateServo, "actuateServo", 4096, NULL, configMAX_PRIORITIES-4, NULL);
     xTaskCreate(vTask_actuateMotor, "actuateMotor", 4096, NULL, configMAX_PRIORITIES-5, NULL);
+    // Alphanumeric Display
+    xTaskCreate(vTask_writeToAlphanum, "writeToAlphanum", 4096, NULL, configMAX_PRIORITIES-6, NULL);
     xTaskCreate(vTask_readLidar, "readLidar", 4096, NULL, configMAX_PRIORITIES-6, NULL);
 
     
@@ -304,6 +333,31 @@ void vTask_actuateMotor(){
     int lastSetpoint = 1;
 
     for(;;){
+        // If the START button has been clicked
+        if (strncmp(rx_buffer, "START", 5) == 0) {
+            // Start Using the Motor
+            motorSetpoint = 0.35;
+            ESP_LOGI(TAG, "--> START!!!");
+        }
+        // If the STOP button has been clicked
+        else if (strncmp(rx_buffer, "STOP", 4) == 0) {
+            // Stop the Motor
+            motorSetpoint = 0.0;
+            ESP_LOGI(TAG, "--> STOP!!!");
+        }
+        // If the EMERGENCY STOP button has been clicked
+        else if (strncmp(rx_buffer, "EMERGENCY_STOP", 14) == 0) {
+            // Stop the Motor
+            motorSetpoint = 0.0;
+            ESP_LOGI(TAG, "--> EMERGENCY STOP!!!!!");
+        }
+        // If some other message is being sent other than "START", "STOP", or "EMERGENCY STOP"
+        else {
+            // Stop the Motor
+            motorSetpoint = 0.0;
+            ESP_LOGI(TAG, "--> Unknown Message");
+        }
+
         if(motorFlag){ // If the user has sent throttle directed to the motor...
             int convertedPw = motorThrottle(motorSpeed); // convert the input throttle given in percent to the corresponding PWM...
             ESP_ERROR_CHECK(mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_B, convertedPw)); // set the pin to the correct PWM...
@@ -322,7 +376,7 @@ void vTask_actuateMotor(){
             }
             // printf("PWM Value: %d\n", convertedPw); // output the PWM value for debugging purposes...
             motorFlag = false; // lower the motor flag. 
-            int lastSetpoint = motorSpeed;
+            lastSetpoint = motorSpeed;
         }
 
         // Delay to make the ESP happy
@@ -604,6 +658,25 @@ int set_brightness_max(uint8_t val) {
   return ret;
 }
 
+// Set-Up the Alphanumeric Display
+static void setup_alpha_display() {
+  i2c_example_master_init();  // Initial Set-Up
+  i2c_scanner();              // Scan to find I2C Device
+  // Debug
+  int ret;
+  printf(">> Test Alphanumeric Display: \n");
+
+  // Set up routines
+  // Turn on alpha oscillator
+  ret = alpha_oscillator();
+  if(ret == ESP_OK) {printf("- oscillator: ok \n");}
+  // Set display blink off
+  ret = no_blink();
+  if(ret == ESP_OK) {printf("- blink: off \n");}
+  ret = set_brightness_max(0xF);
+  if(ret == ESP_OK) {printf("- brightness: max \n");}
+}
+
 // I2C Read/Write Functions:
 
 void writeToRegister(uint8_t lidarAddr, uint8_t reg, uint8_t data){
@@ -769,8 +842,8 @@ static void alarm_init() {
 // TASKS: Wheel Speed //////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// TASK: Timer (TIMER_INTERVAL_SEC second sample period)
-static void timer_evt_task(void *arg) {
+// TASK: Wheel Speed Reader (TIMER_INTERVAL_SEC second sample period)
+static void wheel_speed_task(void *arg) {
 
 	// int pulse_count_unit = PCNT_UNIT_0; // pulse counting unit handle
     int pcnt_unit = PCNT_UNIT_0;	// pulse counting unit handle
@@ -810,45 +883,105 @@ static void timer_evt_task(void *arg) {
     }
 }
 
-// // TASK: Pulse Counter (Wheel Speed)
-// void pulse_counter_task() {
-// 	int pcnt_unit = PCNT_UNIT_0;	// pulse counting unit handle
 
-// 	/* Initialize PCNT event queue and PCNT functions */
-// 	pcnt_evt_queue = xQueueCreate(10, sizeof(pcnt_evt_t));
-// 	pcnt_example_init(pcnt_unit);
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FUNCTIONS: UDP Client ///////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// 	pcnt_evt_t evt;
-// 	portBASE_TYPE res;
-// 	while (1) {
-// 		/* Wait for the event information passed from PCNT's interrupt handler.
-// 		 * Once received, decode the event type and print it on the serial monitor.
-// 		 */
-// 		res = xQueueReceive(pcnt_evt_queue, &evt, 1000 / portTICK_PERIOD_MS);
-// 		if (res == pdTRUE) {
-// 			pcnt_get_counter_value(pcnt_unit, &count);
-// 			// ESP_LOGI(TAG, "Event PCNT unit[%d]; cnt: %d", evt.unit, count);
-// 			if (evt.status & PCNT_EVT_THRES_1) {
-// 				// ESP_LOGI(TAG, "THRES1 EVT");
-// 			}
-// 			if (evt.status & PCNT_EVT_THRES_0) {
-// 				// ESP_LOGI(TAG, "THRES0 EVT");
-// 			}
-// 			if (evt.status & PCNT_EVT_L_LIM) {
-// 				// ESP_LOGI(TAG, "L_LIM EVT");
-// 			}
-// 			if (evt.status & PCNT_EVT_H_LIM) {
-// 				// ESP_LOGI(TAG, "H_LIM EVT");
-// 			}
-// 			if (evt.status & PCNT_EVT_ZERO) {
-// 				// ESP_LOGI(TAG, "ZERO EVT");
-// 			}
-// 		} else {
-// 			pcnt_get_counter_value(pcnt_unit, &count);
-// 			// ESP_LOGI(TAG, "Current counter value :%d", count);
-// 		}
-// 	}
-// }
+static void udp_client_task(void *pvParameters)
+{
+    char host_ip[] = HOST_IP_ADDR;
+    int addr_family = 0;
+    int ip_protocol = 0;
+
+    while (1) {
+
+#if defined(CONFIG_EXAMPLE_IPV4)
+        struct sockaddr_in dest_addr;
+        dest_addr.sin_addr.s_addr = inet_addr(HOST_IP_ADDR);
+        dest_addr.sin_family = AF_INET;
+        dest_addr.sin_port = htons(PORT);
+        addr_family = AF_INET;
+        ip_protocol = IPPROTO_IP;
+#elif defined(CONFIG_EXAMPLE_IPV6)
+        struct sockaddr_in6 dest_addr = { 0 };
+        inet6_aton(HOST_IP_ADDR, &dest_addr.sin6_addr);
+        dest_addr.sin6_family = AF_INET6;
+        dest_addr.sin6_port = htons(PORT);
+        dest_addr.sin6_scope_id = esp_netif_get_netif_impl_index(EXAMPLE_INTERFACE);
+        addr_family = AF_INET6;
+        ip_protocol = IPPROTO_IPV6;
+#elif defined(CONFIG_EXAMPLE_SOCKET_IP_INPUT_STDIN)
+        struct sockaddr_storage dest_addr = { 0 };
+        ESP_ERROR_CHECK(get_addr_from_stdin(PORT, SOCK_DGRAM, &ip_protocol, &addr_family, &dest_addr));
+#endif
+
+        int sock = socket(addr_family, SOCK_DGRAM, ip_protocol);
+        if (sock < 0) {
+            ESP_LOGE(TAG, "Unable to create socket: errno %d", errno);
+            break;
+        }
+
+        // Set timeout
+        struct timeval timeout;
+        timeout.tv_sec = 10;
+        timeout.tv_usec = 0;
+        setsockopt (sock, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof timeout);
+
+        ESP_LOGI(TAG, "Socket created, sending to %s:%d", HOST_IP_ADDR, PORT);
+
+        while (1) {
+
+            int err = sendto(sock, payload, strlen(payload), 0, (struct sockaddr *)&dest_addr, sizeof(dest_addr));
+            if (err < 0) {
+                ESP_LOGE(TAG, "Error occurred during sending: errno %d", errno);
+                break;
+            }
+            ESP_LOGI(TAG, "Message sent");
+
+            struct sockaddr_storage source_addr; // Large enough for both IPv4 or IPv6
+            socklen_t socklen = sizeof(source_addr);
+            int len = recvfrom(sock, rx_buffer, sizeof(rx_buffer) - 1, 0, (struct sockaddr *)&source_addr, &socklen);
+
+            // Error occurred during receiving
+            if (len < 0) {
+                ESP_LOGE(TAG, "recvfrom failed: errno %d", errno);
+                break;
+            }
+            // Data received
+            else {
+                rx_buffer[len] = 0; // Null-terminate whatever we received and treat like a string
+                ESP_LOGI(TAG, "Received %d bytes from %s:", len, host_ip);
+                ESP_LOGI(TAG, "%s", rx_buffer);
+                if (strncmp(rx_buffer, "OK: ", 4) == 0) {
+                    ESP_LOGI(TAG, "Received expected message, reconnecting");
+                    break;
+                }
+
+                // // ADDED CODE //////
+                // if (strncmp(rx_buffer, "BUTTON_PRESSED", 10) == 0) {
+                //     ESP_LOGI(TAG, "LED BLINKING!!!");
+                //     blink_state = !(blink_state);           // flip LED state
+                //     gpio_set_level(LED_PIN, blink_state);   // turn on/off LED
+                // }
+                // else {
+                //     ESP_LOGI(TAG, "LED OFF");
+                //     gpio_set_level(LED_PIN, 0);  // turn off LED
+                // }
+
+            }
+
+            vTaskDelay(2000 / portTICK_PERIOD_MS);
+        }
+
+        if (sock != -1) {
+            ESP_LOGE(TAG, "Shutting down socket and restarting...");
+            shutdown(sock, 0);
+            close(sock);
+        }
+    }
+    vTaskDelete(NULL);
+}
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -856,7 +989,27 @@ static void timer_evt_task(void *arg) {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 // Initialization
-void init_wheelSpeed() {
+void initial_setup() {
+    // WHEEL SPEED /////////////////////////////////
 	// Initiate alarm using timer API
 	alarm_init();
+
+    // WIFI COMMUNICATION //////////////////////////
+    ESP_ERROR_CHECK(nvs_flash_init());
+    ESP_ERROR_CHECK(esp_netif_init());
+    ESP_ERROR_CHECK(esp_event_loop_create_default());
+
+    /* This helper function configures Wi-Fi or Ethernet, as selected in menuconfig.
+     * Read "Establishing Wi-Fi or Ethernet Connection" section in
+     * examples/protocols/README.md for more information about this function.
+     */
+    ESP_ERROR_CHECK(example_connect());
+
+    // ALPHANUMERIC DISPLAY ///////////////////////
+    // Initiate Alphanumeric Display
+    setup_alpha_display();
+
+    // BUGGY //////////////////////////////////////
+    // Initialize the motor driver
+    initializeMotorDriver(motorInitTime);
 }
