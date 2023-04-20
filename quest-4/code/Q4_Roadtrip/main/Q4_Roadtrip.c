@@ -131,7 +131,7 @@ static const char *TAG = "Roadtrip";
 #define PORT CONFIG_EXAMPLE_PORT
 
 //LED "START?STOP? Indicator Button
-#define LED_PIN 19"
+#define LED_PIN 19
 
 // Global Variables: servo and motor control
 char inString[8];
@@ -140,6 +140,7 @@ float motorSetpoint; // Set the motor setpoint to 0 by default
 int motorSpeed;
 bool servoFlag = true; // Initialize the servo
 bool motorFlag = false;
+bool estopFlag = false;
 
 // Global Variables: PID Controller
 float error;
@@ -346,7 +347,9 @@ void vTask_actuateMotor(){
         // If the STOP button has been clicked
         else if (strncmp(rx_buffer, "STOP", 4) == 0) {
             // Stop the Motor
-            motorSetpoint = 0.0;
+            motorSpeed = 0;
+            motorFlag = true;
+            estopFlag = true;
             gpio_set_level(LED_PIN, 0); // turn off LED
             // ESP_LOGI(TAG, "--> STOP!!!");
         }
@@ -384,6 +387,13 @@ void vTask_actuateMotor(){
             // printf("PWM Value: %d\n", convertedPw); // output the PWM value for debugging purposes...
             motorFlag = false; // lower the motor flag. 
             lastSetpoint = motorSpeed;
+            if(estopFlag){
+                vTaskDelete(vTask_PIDController);
+                vTaskDelete(NULL);
+                for(;;){
+
+                }
+            }
         }
 
         // Delay to make the ESP happy
