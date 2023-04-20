@@ -63,6 +63,13 @@ static const char *TAG = "Roadtrip";
 #define maxOut 100
 #define minOut 0
 
+// Macros: steering PID controller
+#define KpSteering 3.5
+#define KiSteering 0.00001
+#define KdSteering 150.0
+#define maxOutSteering 180
+#define minOutSteering 0
+
 // Macros: alphanumeric display
 #define DEFAULT_VREF    1100        //Use adc2_vref_to_gpio() to obtain a better estimate
 #define SAMPLING_RATE   64          //Multisampling
@@ -150,6 +157,13 @@ float derivative = 0;
 float timeStep = 100;
 bool pidFlag = false;
 
+// Global Variables: steering PID Controller
+float steerError;
+float steerPrevError = 0.0;
+float steerIntegral = 0.0;
+float steerDerivative = 0.0;
+float steerTimeStep = 350.0;
+
 // Global Variables: alphanumeric display
 char inString[8];
 char lastString[8];
@@ -157,7 +171,9 @@ bool writeAlphaFlag = false;
 int distance;
 
 // Global Variables: LiDAR
-float distanceForward;
+float distanceRight;
+bool distanceRightFlag = false;
+float distanceFromWall = 40.0;
 
 // GLOBAL VARIABLES: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 // Global Variable for Counting Pulses
@@ -220,7 +236,7 @@ void vTask_PIDController();
 void vTask_writeToAlphanum();
 static void wheel_speed_task(void *arg);
 static void udp_client_task(void *pvParameters);
-void vTask_readLidar();
+void vTask_readRightLidar();
 
 
 void app_main(void)
@@ -238,17 +254,17 @@ void app_main(void)
 
     // WHEEL SPEED /////////////////////////////////////////////////////
 	// Timer Task
-	xTaskCreate(wheel_speed_task, "wheel_speed", 4096, NULL, configMAX_PRIORITIES-1, NULL);
+	xTaskCreate(wheel_speed_task, "wheel_speed", 4096, NULL, configMAX_PRIORITIES, NULL);
 
     // BUGGY /////////////////////////////////////////////////////
     // Main tasks
     xTaskCreate(vTask_PIDController, "PIDController", 4096, NULL, configMAX_PRIORITIES-2, NULL);
-    xTaskCreate(vTask_readSerial, "readSerial", 4096, NULL, configMAX_PRIORITIES-3, NULL);
-    xTaskCreate(vTask_actuateServo, "actuateServo", 4096, NULL, configMAX_PRIORITIES-4, NULL);
-    xTaskCreate(vTask_actuateMotor, "actuateMotor", 4096, NULL, configMAX_PRIORITIES-5, NULL);
+    // xTaskCreate(vTask_readSerial, "readSerial", 4096, NULL, configMAX_PRIORITIES-3, NULL);
+    xTaskCreate(vTask_actuateServo, "actuateServo", 4096, NULL, configMAX_PRIORITIES-3, NULL);
+    xTaskCreate(vTask_actuateMotor, "actuateMotor", 4096, NULL, configMAX_PRIORITIES-2, NULL);
     // Alphanumeric Display
-    xTaskCreate(vTask_writeToAlphanum, "writeToAlphanum", 4096, NULL, configMAX_PRIORITIES-6, NULL);
-    xTaskCreate(vTask_readLidar, "readLidar", 4096, NULL, configMAX_PRIORITIES-6, NULL);
+    xTaskCreate(vTask_writeToAlphanum, "writeToAlphanum", 4096, NULL, configMAX_PRIORITIES-3, NULL);
+    xTaskCreate(vTask_readRightLidar, "readLidar", 4096, NULL, configMAX_PRIORITIES-4, NULL);
 
     
 }
@@ -316,12 +332,27 @@ void vTask_actuateServo(){
     // mcpwm_init(MCPWM_UNIT_0, MCPWM_TIMER_0, &servoPwConfigs);
 
     for(;;){
-        if(servoFlag){ // If the user has sent an angle directed to the servo...
+        if(distanceRightFlag){ // If the user has sent an angle directed to the servo...
+
+            steerError = distanceFromWall - distanceRight;
+            steerIntegral += steerError * timeStep;
+            steerDerivative = (steerError - prevError) / timeStep / 1000.0;
+            steerPrevError = steerError;
+            servoSetpoint = (int) round((KpSteering * steerError) + (KiSteering * steerIntegral) + (KdSteering * steerDerivative));
+            if(servoSetpoint > maxOutSteering){
+                servoSetpoint = maxOutSteering;
+            }
+            else if(servoSetpoint < minOutSteering){
+                servoSetpoint = minOutSteering;
+            }
+
+            servoSetpoint = servoSetpoint - 90;
+
             int convertedPw = servoDegToPw(servoSetpoint); // convert the input angle given in degrees to the corresponding PWM...
             ESP_ERROR_CHECK(mcpwm_set_duty_in_us(MCPWM_UNIT_0, MCPWM_TIMER_0, MCPWM_OPR_A, convertedPw)); // set the pin to the correct PWM...
             printf("Steering angle set to %d degrees\n", servoSetpoint); // alert the user that the change of angle has been successful...
             // printf("PWM Value: %d\n", convertedPw); // output the PWM value for debugging purposes...
-            servoFlag = false; // lower the servo flag. 
+            distanceRightFlag = false; // lower the servo flag. 
         }
 
         // Delay to make the ESP happy
@@ -421,7 +452,7 @@ void vTask_PIDController(){
             motorFlag = true;
             lastWheelSpeed = wheel_speed;
         }
-        vTaskDelay(pdMS_TO_TICKS(timeStep));
+        vTaskDelay(pdMS_TO_TICKS(steerTimeStep));
     }
 
 }
@@ -481,27 +512,32 @@ void vTask_writeToAlphanum() {
 }
 
 // ~~~~~ LiDAR ~~~~~
-void vTask_readLidar(){
+void vTask_readRightLidar(){
     for(;;){
-        writeToRegister(lidarAddrRight, measureRegister, measureValue);
+        distanceRight = 0.0;
+        for(int i = 0; i < 5; i++){
+            writeToRegister(lidarAddrRight, measureRegister, measureValue);
 
-        int dataFlag = 1;
-        uint16_t registerData;
-        while(dataFlag){
-            registerData = readRegister(lidarAddrRight, 0x01);
-            dataFlag = registerData & (1 << 15);
-            vTaskDelay(pdMS_TO_TICKS(5));
+            int dataFlag = 1;
+            uint16_t registerData;
+            while(dataFlag){
+                registerData = readRegister(lidarAddrRight, 0x01);
+                dataFlag = registerData & (1 << 15);
+                vTaskDelay(pdMS_TO_TICKS(5));
+            }
+            int distanceRightRaw = readRegister(lidarAddrRight, allBytes);
+            distanceRight += (float) distanceRightRaw;
         }
-        int distanceForwardRaw = readRegister(lidarAddrRight, allBytes);
-        distanceForward = (float) distanceForwardRaw / 100.0;
-        printf("Distance Measured Forward: %.2f\n", distanceForward);
-        vTaskDelay(pdMS_TO_TICKS(1000));
+        distanceRight = distanceRight / 5.0;
+        // printf("Distance Measured Right: %.2f\n", distanceRight);
+        distanceRightFlag = true;
+        vTaskDelay(pdMS_TO_TICKS((int)steerTimeStep / 5.0));
     }
 }
 
 // ~~~~~~~~~~ Helper function Definitions ~~~~~~~~~~
 
-// ~~~~~ Servo ~~~~~
+// ~~~~~ Servo ~~~~~f
 
 // servoDegToPw: Converts an input angle into the appropriate PWM to actuate the servo
 int servoDegToPw(int angle){
@@ -892,6 +928,7 @@ static void wheel_speed_task(void *arg) {
             sprintf(inString, "%1.3f", wheel_speed);
             writeAlphaFlag = true;
             pidFlag = true;
+            
         }
             
 
