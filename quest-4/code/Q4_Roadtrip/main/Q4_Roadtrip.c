@@ -45,8 +45,8 @@ static const char *TAG = "Roadtrip";
 
 // Macros: PID controller
 #define Kp 5.0        //0.1
-#define Ki 0.02        //0.1   <-- this one makes it go crazy!!!
-#define Kd 0.1        //0.1
+#define Ki 0.009        //0.1   <-- this one makes it go crazy!!!
+#define Kd 0.15        //0.1
 #define maxOut 100
 #define minOut 0
 
@@ -439,11 +439,13 @@ void initializeMotorDriver(int time){
     printf("Please power the buggy on in\n");
     for(int i = 3; i > 0; i--){
         printf("%d...\n", i);
-        sprintf(inString, "%d...", (uint8_t)i);
+        sprintf(inString, "IN %d", (uint8_t)i);
         writeAlphaFlag = true;
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
+    sprintf(inString, "P ON");
+    writeAlphaFlag = true;
     printf("POWER ON BUGGY\n");
 
     // Set PWM to the initial (median) value accepted by the ESC
