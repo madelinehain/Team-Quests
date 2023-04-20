@@ -376,7 +376,7 @@ void vTask_actuateMotor(){
             // ESP_LOGI(TAG, "--> START!!!");
         }
         // If the STOP button has been clicked
-        else if (strncmp(rx_buffer, "STOP", 4) == 0) {
+        else if (strncmp(rx_buffer, "EMERGENCY_STOP", 14) == 0) {
             // Stop the Motor
             motorSpeed = 0;
             motorFlag = true;
@@ -384,8 +384,8 @@ void vTask_actuateMotor(){
             gpio_set_level(LED_PIN, 0); // turn off LED
             // ESP_LOGI(TAG, "--> STOP!!!");
         }
+        else if (strncmp(rx_buffer, "STOP", 4) == 0) {
         // If the EMERGENCY STOP button has been clicked
-        else if (strncmp(rx_buffer, "EMERGENCY_STOP", 14) == 0) {
             // Stop the Motor
             motorSetpoint = 0.0;
             gpio_set_level(LED_PIN, 0); // turn off LED
