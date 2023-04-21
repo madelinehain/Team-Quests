@@ -36,6 +36,8 @@
 #include "lwip/sys.h"
 #include <lwip/netdb.h>
 
+#include "driver/i2c.h"
+
 
 static const char *TAG = "Roadtrip";
 
@@ -57,16 +59,16 @@ static const char *TAG = "Roadtrip";
 #define motorPin 12
 
 // Macros: PID controller
-#define Kp 5.0        //0.1
-#define Ki 0.009        //0.1   <-- this one makes it go crazy!!!
-#define Kd 0.15        //0.1
+#define Kp 0.25        //0.1
+#define Ki 0.005        //0.1   <-- this one makes it go crazy!!!
+#define Kd 0.0015        //0.1
 #define maxOut 100
 #define minOut 0
 
 // Macros: steering PID controller
-#define KpSteering 3.5
-#define KiSteering 0.00001
-#define KdSteering 150.0
+#define KpSteering 5.5 // 3.5
+    #define KiSteering 0.000001 // 0.00001
+#define KdSteering 0.01 // 150
 #define maxOutSteering 180
 #define minOutSteering 0
 
@@ -102,6 +104,10 @@ static const char *TAG = "Roadtrip";
 #define measureValue 0x04
 #define measureRegister 0x00
 #define allBytes 0x8f
+
+#define lidarAddrFront 0x50
+#define lidarOffPinRight 33
+#define lidarOffPinFront 27
 
 // DEFINE: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 #define PCNT_H_LIM_VAL      1000	// Upper Limit of pulse counter
@@ -175,6 +181,9 @@ float distanceRight;
 bool distanceRightFlag = false;
 float distanceFromWall = 40.0;
 
+float distanceFront;
+float distanceFrontFlag = false;
+
 // GLOBAL VARIABLES: Pulse Counter (Wheel Speed) /////////////////////////////////////////////////////
 // Global Variable for Counting Pulses
 int16_t count = 0;  // pulse count (per sample time)
@@ -209,6 +218,7 @@ char rx_buffer[128];    // Message from Server -> ESP32
 // Helper function declarations
 int servoDegToPw(int angle);
 int motorThrottle(int level);
+void changeLidarAddr();
 void initializeMotorDriver(int time);
 
 static void i2c_example_master_init();
@@ -245,12 +255,13 @@ void app_main(void)
     // Create a FIFO queue for timer-based events
 	timer_queue = xQueueCreate(10, sizeof(timer_event_t));
 
+    xTaskCreate(vTask_writeToAlphanum, "writeToAlphanum", 4096, NULL, configMAX_PRIORITIES-3, NULL);
     // Initialize Everything ~*~*~*~*~
     initial_setup();
 
     // UDP CLIENT START/STOP /////////////////////////////////////////////////////
     // Wireless Communication
-    xTaskCreate(udp_client_task, "udp_client", 4096, NULL, configMAX_PRIORITIES, NULL);
+    xTaskCreate(udp_client_task, "udp_client", 4096, NULL, configMAX_PRIORITIES-4, NULL);
 
     // WHEEL SPEED /////////////////////////////////////////////////////
 	// Timer Task
@@ -263,7 +274,6 @@ void app_main(void)
     xTaskCreate(vTask_actuateServo, "actuateServo", 4096, NULL, configMAX_PRIORITIES-3, NULL);
     xTaskCreate(vTask_actuateMotor, "actuateMotor", 4096, NULL, configMAX_PRIORITIES-2, NULL);
     // Alphanumeric Display
-    xTaskCreate(vTask_writeToAlphanum, "writeToAlphanum", 4096, NULL, configMAX_PRIORITIES-3, NULL);
     xTaskCreate(vTask_readRightLidar, "readLidar", 4096, NULL, configMAX_PRIORITIES-4, NULL);
 
     
@@ -336,7 +346,7 @@ void vTask_actuateServo(){
 
             steerError = distanceFromWall - distanceRight;
             steerIntegral += steerError * timeStep;
-            steerDerivative = (steerError - prevError) / timeStep / 1000.0;
+            steerDerivative = (steerError - steerPrevError) / timeStep / 1000.0;
             steerPrevError = steerError;
             servoSetpoint = (int) round((KpSteering * steerError) + (KiSteering * steerIntegral) + (KdSteering * steerDerivative));
             if(servoSetpoint > maxOutSteering){
@@ -514,7 +524,8 @@ void vTask_writeToAlphanum() {
 // ~~~~~ LiDAR ~~~~~
 void vTask_readRightLidar(){
     for(;;){
-        distanceRight = 0.0;
+        float distanceRightTemp = 0.0;
+        float distanceFrontTemp = 0.0;
         for(int i = 0; i < 5; i++){
             writeToRegister(lidarAddrRight, measureRegister, measureValue);
 
@@ -526,13 +537,32 @@ void vTask_readRightLidar(){
                 vTaskDelay(pdMS_TO_TICKS(5));
             }
             int distanceRightRaw = readRegister(lidarAddrRight, allBytes);
-            distanceRight += (float) distanceRightRaw;
+            distanceRightTemp += (float) distanceRightRaw;
         }
-        distanceRight = distanceRight / 5.0;
+        distanceRight = distanceRightTemp / 5.0;
+
+        for(int i = 0; i < 5; i++){
+            writeToRegister(lidarAddrFront, measureRegister, measureValue);
+
+            int dataFlag = 1;
+            uint16_t registerData;
+            while(dataFlag){
+                registerData = readRegister(lidarAddrFront, 0x01);
+                dataFlag = registerData & (1 << 15);
+                vTaskDelay(pdMS_TO_TICKS(5));
+            }
+            int distanceFrontRaw = readRegister(lidarAddrFront, allBytes);
+            distanceFrontTemp += (float) distanceFrontRaw;
+        }
+        distanceFront = distanceFrontTemp / 5.0;
+
+        distanceFrontFlag = true;
+        // printf("Distance Measured Front: %.2f\n", distanceFront);
         // printf("Distance Measured Right: %.2f\n", distanceRight);
         distanceRightFlag = true;
         vTaskDelay(pdMS_TO_TICKS((int)steerTimeStep / 5.0));
     }
+
 }
 
 // ~~~~~~~~~~ Helper function Definitions ~~~~~~~~~~
@@ -585,7 +615,7 @@ void initializeMotorDriver(int time){
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
 
-    sprintf(inString, "P ON");
+    sprintf(inString, " PWR");
     writeAlphaFlag = true;
     printf("POWER ON BUGGY\n");
 
@@ -649,12 +679,12 @@ int testConnection(uint8_t devAddr, int32_t timeout) {
 // Utility function to scan for i2c device
 static void i2c_scanner() {
     int32_t scanTimeout = 1000;
-    // printf("\n>> I2C scanning ..."  "\n");
+    printf("\n>> I2C scanning ..."  "\n");
     uint8_t count = 0;
     for (uint8_t i = 1; i < 127; i++) {
         // printf("0x%X%s",i,"\n");
         if (testConnection(i, scanTimeout) == ESP_OK) {
-            // printf( "- Device found at address: 0x%X%s", i, "\n");
+            printf( "- Device found at address: 0x%X%s", i, "\n");
             count++;
         }
     }
@@ -1042,6 +1072,17 @@ static void udp_client_task(void *pvParameters)
 
 // Initialization
 void initial_setup() {
+    // Disable right-facing lidar
+    gpio_reset_pin(lidarOffPinRight);
+    gpio_set_direction(lidarOffPinRight, GPIO_MODE_OUTPUT);
+    gpio_set_level(lidarOffPinRight, 0);
+    vTaskDelay(pdMS_TO_TICKS(10));
+
+    // Disable front facing lidar
+    gpio_reset_pin(lidarOffPinFront);
+    gpio_set_direction(lidarOffPinFront, GPIO_MODE_OUTPUT);
+    gpio_set_level(lidarOffPinFront, 0);
+    vTaskDelay(pdMS_TO_TICKS(10));
     // ALPHANUMERIC DISPLAY ///////////////////////
     // Initiate Alphanumeric Display
     setup_alpha_display();
@@ -1067,8 +1108,45 @@ void initial_setup() {
 
     gpio_set_direction(LED_PIN, GPIO_MODE_OUTPUT);
     
+     // Change LiDAR address:
+     changeLidarAddr();
+
     sprintf(inString, "REDY");
     writeAlphaFlag = true;
     printf("Initialization Sequence Complete.\n");
     vTaskDelay(pdMS_TO_TICKS(1000));
+}
+
+// Function to change LiDAR Address
+void changeLidarAddr(){
+
+    // Enable front facing lidar
+    gpio_set_level(lidarOffPinFront, 1);
+    vTaskDelay(pdMS_TO_TICKS(500));
+
+    // Read serial number
+    uint16_t serialNo = readRegister(lidarAddrRight, 0x96);
+    printf("LiDAR Serial Number: %x\n", serialNo);
+
+    // Write serial number to unlock control of I2C address
+    int high = (serialNo>>8) & 0xff;
+    int low = serialNo & (0xff);
+    
+    writeToRegister(lidarAddrRight, 0x18, high);
+    writeToRegister(lidarAddrRight, 0x19, low);
+
+    // Write new address to register
+    writeToRegister(lidarAddrRight, 0x1a, lidarAddrFront);
+    
+    // Disable default address
+    writeToRegister(lidarAddrRight, 0x1e, 0x08);
+
+    // Re-enable right-facing lidar
+    vTaskDelay(pdMS_TO_TICKS(500));
+    gpio_set_level(lidarOffPinRight, 1);
+    vTaskDelay(pdMS_TO_TICKS(500));
+    
+    printf("LiDAR Address Changed.\n");
+    i2c_scanner();
+    vTaskDelay(pdMS_TO_TICKS(10));
 }
