@@ -12,7 +12,7 @@
 // Required module
 var dgram = require('dgram');
 // Port and IP
-var PORT_ESP = 3333;          // Port where the thermistor data comes from
+var PORT_ESP = 8080;          // Port where the thermistor data comes from
 var HOST = '192.168.1.6'; // Server Host Address (whatever is running this node server)
 const PORT = process.env.PORT || 8080;  // Port where server is running from "NodeServerHostIP:PORT"
 // Create socket
