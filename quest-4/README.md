@@ -1,4 +1,4 @@
-# Quest Name
+# Road Trip
 
 Authors: Maxwell Bakalos, Miguel Ianus-Valdiva, Madeline Hain, Emre Karabay
 
@@ -44,10 +44,6 @@ Every 10ms the Alphanumeric display (task) is updated with the wheel speed read 
 
 ## Solution Design
 
-
-
-
-## Sketches/Diagrams
 <p align="center">
 <img src="./images/Q4_Buggy.JPG" width="50%">
 </p>
@@ -60,6 +56,24 @@ Buggy
 </p>
 <p align="center">
 HTML Page
+</p>
+
+
+## Sketches/Diagrams
+
+
+<p align="center">
+<img src="./images/PID Diagram.JPG" width="50%">
+</p>
+<p align="center">
+PID Diagram
+</p>
+
+<p align="center">
+<img src="./images/Wifi State Diagram.JPG" width="50%">
+</p>
+<p align="center">
+Wifi Diagram
 </p>
 
 
