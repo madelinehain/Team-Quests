@@ -46,22 +46,31 @@ Every 10ms the Alphanumeric display (task) is updated with the wheel speed read 
 
 
 
+
 ## Sketches/Diagrams
 <p align="center">
-<img src="./images/ece444.png" width="50%">
+<img src="./images/Q4_Buggy.JPG" width="50%">
 </p>
 <p align="center">
-Caption Here
+Buggy
+</p>
+
+<p align="center">
+<img src="./images/Q4 HTML Web Page.JPG" width="50%">
+</p>
+<p align="center">
+HTML Page
 </p>
 
 
 
 ## Supporting Artifacts
-- [Link to video technical presentation](). Not to exceed 120s
-- [Link to video demo](). Not to exceed 120s
+- Technical Presentation: https://drive.google.com/file/d/1VVHwE9j1hRZhgmZ4ynwPTJLJZRxT3DFn/view?usp=share_link
+- Video Demo: https://drive.google.com/file/d/1M7Nd9be10AihvvLTDj6sUXszwlZzKf7e/view?usp=share_link
 
 
 ## Modules, Tools, Source Used Including Attribution
+LiDAR Examples from Code Examples, PID Recipe, ESP32 Pulse Counter Example
 
 ## References
 
