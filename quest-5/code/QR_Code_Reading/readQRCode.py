@@ -16,10 +16,13 @@ time.sleep(2.0)
 csv = open(args["output"], "w")
 found = set()
 
+print("Initialized")
+
 while True:
     frame = vs.read()
     frame = imutils.resize(frame, width=400)
     barcodes = pyzbar.decode(frame)
+    print("Trying to decode")
     for barcode in barcodes:
         (x, y, w, h) = barcode.rect
         cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
