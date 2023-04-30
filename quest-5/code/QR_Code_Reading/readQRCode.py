@@ -32,17 +32,17 @@ while True:
 
     # if the barcode text is currently not in our CSV file, write
     # the timestamp + barcode to disk and update the set
-    if barcodeData not in found:
-        csv.write("{},{}\n".format(datetime.datetime.now(), barcodeData))
-    csv.flush()
-    found.add(barcodeData)
-    cv2.imshow("Barcode Reader", frame)
-    key = cv2.waitKey(1) & 0xFF
+        if barcodeData not in found:
+            csv.write("{},{}\n".format(datetime.datetime.now(), barcodeData))
+        csv.flush()
+        found.add(barcodeData)
+        cv2.imshow("Barcode Reader", frame)
+        key = cv2.waitKey(1) & 0xFF
 
-    # if the `s` key is pressed, break from the loop
-    if key == ord("s"):
-        break
-    print("[INFO] cleaning up...")
-    csv.close()
-    cv2.destroyAllWindows()
-    vs.stop()
+        # if the `s` key is pressed, break from the loop
+        if key == ord("s"):
+            break
+        print("[INFO] cleaning up...")
+        csv.close()
+        cv2.destroyAllWindows()
+        vs.stop()
