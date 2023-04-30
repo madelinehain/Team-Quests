@@ -26,7 +26,7 @@ cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
 barcodeData = barcode.data.decode("utf-8")
 barcodeType = barcode.type
 text = "{} ({})".format(barcodeData, barcodeType)
-        print (text)
+print (text)
 cv2.putText(frame, text, (x, y - 10),
 cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
 
