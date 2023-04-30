@@ -1,8 +1,8 @@
-# Quest Name
+# Space and Occupancy
 
-Authors: FirstName1 LastName1, FirstName2 LastName2, FirstName3 LastName 3
+Authors: Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
 
-Date: YYYY-MM-DD
+Date: 2023-04-29
 
 ### Summary
 
