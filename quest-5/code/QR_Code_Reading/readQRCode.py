@@ -47,9 +47,9 @@ while True:
         csv.flush()
         found.add(barcodeData)
         cv2.imshow("Barcode Reader", frame)
-        key = cv2.waitKey(1) & 0xFF
 
     # if the `s` key is pressed, break from the loop
+    key = cv2.waitKey(1) & 0xFF
     if key == ord("s"):
         break
 
