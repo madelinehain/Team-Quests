@@ -76,10 +76,9 @@
 char start = 0x1B; // START BYTE that UART looks for
 char myID = (char)ID;
 char myColor = (char)COLOR;
-int len_out = 4;
-
-// Variable received from FOB
-char SERVERrandKEYreceived[];
+const int random_key_length = 8;      // length of random key from server
+int len_out = random_key_length + 2;  // length of IR message
+short lock_state = 0;                 // Scooter Lock State (0 -> locked, 1 -> unlocked)
 
 // Mutex (for resources), and Queues (for button)
 SemaphoreHandle_t mux = NULL;               // 2023: no changes
@@ -117,9 +116,14 @@ static const char *TAG_UART = "ec444: uart";   // For UART logs
 #define PORT CONFIG_EXAMPLE_PORT
 
 // GLOBAL VARIABLES: UDP Client ////////////////////////////////////
-static const char *TAG = "Sender_Client";
+static const char *TAG = "Receiver_Client";
 // static const char *payload = "Message from ESP32 ";
-char payload[20] = "Scooter1, Fob1";
+// char payload[20] = "Scooter1, Fob1";
+char payload[20] = "ayy, bee";
+
+// GLOBAL VARIABLES: IR ////////////////////////////////////
+static const char *TAG_IR = "Scooter";
+char data_in_str[128];
 
 // GLOBAL VARIABLES: LED ////////////////////////////////////
 char rx_buffer[128];
@@ -358,26 +362,6 @@ void button_task()
   }
 }
 
-// Send task -- sends payload | Start | myID | Start | myID -- 2023: no changes
-void send_task()
-{
-  while (1)
-  {
-
-    char *data_out = (char *)malloc(len_out);
-    xSemaphoreTake(mux, portMAX_DELAY);
-    data_out[0] = SERVERrandKEYreceived[0];
-    data_out[1] = SERVERrandKEYreceived[1];
-    data_out[2] = SERVERrandKEYreceived[2];
-    data_out[3] = SERVERrandKEYreceived[3];
-    // ESP_LOG_BUFFER_HEXDUMP(TAG_SYSTEM, data_out, len_out, ESP_LOG_INFO);
-
-    uart_write_bytes(UART_NUM_1, data_out, len_out);
-    xSemaphoreGive(mux);
-
-    vTaskDelay(5 / portTICK_PERIOD_MS);
-  }
-}
 
 // Receive task -- looks for Start byte then stores received values -- 2023: minor changes
 void recv_task()
@@ -385,10 +369,11 @@ void recv_task()
   // Buffer for input data
   // Receiver expects message to be sent multiple times
   uint8_t *data_in = (uint8_t *)malloc(BUF_SIZE2);
+
   while (1)
   {
     int len_in = uart_read_bytes(UART_NUM_1, data_in, BUF_SIZE2, 100 / portTICK_PERIOD_MS);
-    ESP_LOGE(TAG_UART, "Length: %d", len_in);
+    // ESP_LOGE(TAG_UART, "Length: %d", len_in);
     if (len_in > 10)
     {
       int nn = 0;
@@ -399,20 +384,41 @@ void recv_task()
       }
       uint8_t copied[len_out];
       memcpy(copied, data_in + nn, len_out * sizeof(uint8_t));
-      printf("before checksum");
+      // printf("before checksum");
       // ESP_LOG_BUFFER_HEXDUMP(TAG_UART, copied, len_out, ESP_LOG_INFO);
-      if (true) // checkCheckSum(copied, len_out))
+      if (checkCheckSum(copied, len_out)) //(true)
       {
-        printf("after checksum");
+        // printf("after checksum");
         ESP_LOG_BUFFER_HEXDUMP(TAG_UART, copied, len_out, ESP_LOG_INFO);
         uart_flush(UART_NUM_1);
         // SERVERrandKEYreceived = data_in;
       }
+
+      // Read data into string for comparison (skip first "start" and last "end" characters)
+      for (int i = 1; i < (len_out-1); i++) {
+        sprintf(&data_in_str[i-1], "%c", copied[i]); // convert each byte to a character and store in the string
+      }
+      data_in_str[len_out] = '\0'; // add null terminator to end of string
+
+      printf("\ndata_in_str = %s", data_in_str);
+
+      // // Check if the IR key matches the WiFi key  ~ ~ ~ ~ ~ ~ ~
+      // // If they match . . .
+      // if (strncmp(rx_buffer, data_in_str, 3) == 0) {
+      //   ESP_LOGI(TAG_IR, "-~-~-~<v^> Keys Match!!!");
+      // }
+      // else {
+      //   // printf("%s, %s, %s", data_in_str, rx_buffer, copied);
+      //   ESP_LOGI(TAG_IR, "Here: %s, %s, %s", data_in_str, rx_buffer, copied);
+      // }
     }
     else
     {
       // printf("Nothing received.\n");
     }
+
+
+
     // vTaskDelay(5 / portTICK_PERIOD_MS);
   }
   free(data_in);
@@ -529,6 +535,106 @@ static void udp_client_task(void *pvParameters)
   vTaskDelete(NULL);
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+// FUNCTIONS: Validate Random Key //////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void validate_key_task() {
+  // Initialize Lock Validation Variables
+  int valid_check = 0;
+  int valid_check_count = 0;
+
+  while(1) 
+  {
+    // Check if the IR key matches the WiFi key  ~ ~ ~ ~ ~ ~ ~
+    valid_check = strncmp(rx_buffer, data_in_str, 3);
+
+    // If they don't match . . .
+    if (valid_check) {
+      // printf("%s, %s, %s", data_in_str, rx_buffer, copied);
+      // ESP_LOGI(TAG_IR, "Here: %s, %s", data_in_str, rx_buffer);
+      // ESP_LOGI(TAG_IR, "-~-<v^> INVALID, %d", valid_check);
+      // printf("\nDI: %d:   ", strlen(data_in_str));
+      // for (int i = 0; i < strlen(data_in_str); i++) {
+      //   printf("%02x ", (unsigned char)data_in_str[i]);
+      // }
+      // printf("\nRX: %d:   ", strlen(rx_buffer));
+      // for (int i = 0; i < strlen(rx_buffer); i++) {
+      //   printf("%02x ", (unsigned char)rx_buffer[i]);
+      // }
+      ESP_LOGI(TAG_IR, "-~-<v^> INVALID KEY");
+      
+    }
+    // If they match . . .
+    else {
+      ESP_LOGI(TAG_IR, "-~-<v^> VALID KEY ! ! !");
+      // Count how many times the valid key is received (to prevent premature unlocking)
+      valid_check_count += 1;
+      if (valid_check_count > 5) {
+        lock_state = 1; // Unlock the Scooter
+      }
+      
+    }
+
+    // Clear Data-In String
+    strcpy(data_in_str, "");
+
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
+}
+
+// Lock LED Task
+void lock_led_task(){
+
+  // Initialize LED to Locked Color
+  short led_state = 0;
+
+  while(1) {
+    // If the random key has NOT been sent
+    if (strcmp(rx_buffer, "No Key") == 0) {
+      led_state = 0; // red
+    }
+    // If the random key has been sent
+    else {
+      // If the Scooter is Locked
+      if (lock_state == 0) {
+        led_state = 1; // blue
+      }
+      // If the Scooter is Unlocked
+      else if (lock_state == 1) {
+        led_state = 2; // green
+      }
+    }
+    
+    
+
+    switch((short) led_state){
+      case 0 : // Red
+        gpio_set_level(GREENPIN, 0);
+        gpio_set_level(REDPIN, 1);
+        gpio_set_level(BLUEPIN, 0);
+        break;
+      case 1 : // Blue
+        gpio_set_level(GREENPIN, 0);
+        gpio_set_level(REDPIN, 0);
+        gpio_set_level(BLUEPIN, 1);
+        break;
+      case 2 : // Green
+        gpio_set_level(GREENPIN, 1);
+        gpio_set_level(REDPIN, 0);
+        gpio_set_level(BLUEPIN, 0);
+        break;
+      default: // Red
+        gpio_set_level(GREENPIN, 0);
+        gpio_set_level(REDPIN, 1);
+        gpio_set_level(BLUEPIN, 0);
+        break;
+    }
+    vTaskDelay(100 / portTICK_PERIOD_MS);
+  }
+}
+
+
 ///////////////////////////////////////////////////////////////////////////////////////
 // MAIN MODULE ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~ ~
 
@@ -543,9 +649,6 @@ void app_main(void)
    * examples/protocols/README.md for more information about this function.
    */
   ESP_ERROR_CHECK(example_connect());
-
-  //   xTaskCreate(udp_client_task, "udp_client", 4096, NULL, 5, NULL);
-  xTaskCreate(udp_client_task, "udp_client", 4096, NULL, configMAX_PRIORITIES, NULL);
 
   // Mutex for current values when sending -- no changes
   mux = xSemaphoreCreateMutex();
@@ -569,14 +672,13 @@ void app_main(void)
   button_init();
   pwm_init();
 
-  // Create tasks for receive, send, set gpio, and button -- 2023 -- no changes
-
-  // *****Create one receiver and one transmitter (but not both)
-  xTaskCreate(recv_task, "uart_rx_task", 1024 * 4, NULL, configMAX_PRIORITIES, NULL);
-  // *****Create one receiver and one transmitter (but not both)
-  // xTaskCreate(send_task, "uart_tx_task", 1024*2, NULL, configMAX_PRIORITIES, NULL);
-  xTaskCreate(id_task, "set_id_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
-  xTaskCreate(button_task, "button_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
+  // TASKS
+  xTaskCreate(udp_client_task, "udp_client", 4096, NULL, configMAX_PRIORITIES, NULL);
+  xTaskCreate(recv_task, "uart_rx_task", 1024 * 4, NULL, configMAX_PRIORITIES-1, NULL);
+  xTaskCreate(validate_key_task, "validate_key", 1024 * 2, NULL, configMAX_PRIORITIES-2, NULL);
+  xTaskCreate(lock_led_task, "lock_led", 1024 * 2, NULL, configMAX_PRIORITIES-3, NULL);
+  xTaskCreate(id_task, "set_id_task", 1024 * 2, NULL, configMAX_PRIORITIES-4, NULL);
+  xTaskCreate(button_task, "button_task", 1024 * 2, NULL, configMAX_PRIORITIES-5, NULL);
   while (1)
   {
     vTaskDelay(1000 / portTICK_PERIOD_MS);

@@ -76,10 +76,11 @@
 char start = 0x1B; // START BYTE that UART looks for
 char myID = (char)ID;
 char myColor = (char)COLOR;
-int len_out = 4;
+const int random_key_length = 8;  // length of random key from server
+int len_out = random_key_length + 2;        // length of IR message
 
 // Variable received from FOB
-char SERVERrandKEYreceived[];
+// char SERVERrandKEYreceived[];
 
 // Mutex (for resources), and Queues (for button)
 SemaphoreHandle_t mux = NULL;               // 2023: no changes
@@ -121,9 +122,12 @@ static const char *TAG = "Sender_Client";
 // static const char *payload = "Message from ESP32 ";
 char payload[20] = "Scooter1, Fob1";
 
+// GLOBAL VARIABLES: IR ////////////////////////////////////
+static const char *TAG_IR = "Key-Fob";
+
 // GLOBAL VARIABLES: LED ////////////////////////////////////
 char rx_buffer[128];
-int rx_buffer_length = 10;
+// int rx_buffer_length = 10;
 
 // Button interrupt handler -- add to queue -- 2023: no changes
 static void IRAM_ATTR gpio_isr_handler(void *arg)
@@ -364,25 +368,36 @@ void send_task()
 {
   while (1)
   {
+    // Update Random Key Length and Output Length
+    // random_key_length = strlen(rx_buffer);  // length of random key from server
+    // len_out = random_key_length + 1;        // length of IR message
 
-    // char *data_out = (char *)malloc(len_out);
+    char *data_out = (char *) malloc(len_out);
     xSemaphoreTake(mux, portMAX_DELAY);
-    /*data_out[0] = SERVERrandKEYreceived[0];
-    data_out[1] = SERVERrandKEYreceived[1];
-    data_out[2] = SERVERrandKEYreceived[2];
-    data_out[3] = SERVERrandKEYreceived[3];*/
+
+    // data_out[0] = start;
+    // data_out[1] = (char) 'R';
+    // data_out[2] = (char) '3';
+    // data_out[3] = genCheckSum(data_out,len_out-1);
+
+    // Start (IR message)
+    data_out[0] = start;
+    // Read Message from UDP Client into IR Message
+    short i_rk; // preallocate index for random key
+    for (i_rk = 0; i_rk < random_key_length; i_rk++) {
+      data_out[i_rk+1] = (char) rx_buffer[i_rk];
+    }
+    // End (IR message)
+    data_out[i_rk+2] = genCheckSum(data_out, len_out - 1);
     // ESP_LOG_BUFFER_HEXDUMP(TAG_SYSTEM, data_out, len_out, ESP_LOG_INFO);
 
-    char *data_out = (char *)malloc(len_out);
-    data_out[0] = start;
-    data_out[1] = rx_buffer[0];
-    data_out[2] = rx_buffer[1];
-    data_out[3] = genCheckSum(data_out, len_out - 1);
-    // uart_write_bytes(UART_NUM_1, data_out, len_out);
     uart_write_bytes(UART_NUM_1, data_out, len_out);
     xSemaphoreGive(mux);
 
-    vTaskDelay(5 / portTICK_PERIOD_MS);
+    // Print Send Message to Console Log
+    ESP_LOGI(TAG_IR, "Sending %s", data_out);
+
+    vTaskDelay(5 / portTICK_PERIOD_MS); // changed time from 5 -> 50 (not sure if needed?)
   }
 }
 
@@ -552,9 +567,6 @@ void app_main(void)
    */
   ESP_ERROR_CHECK(example_connect());
 
-  //   xTaskCreate(udp_client_task, "udp_client", 4096, NULL, 5, NULL);
-  xTaskCreate(udp_client_task, "udp_client", 4096, NULL, configMAX_PRIORITIES, NULL);
-
   // Mutex for current values when sending -- no changes
   mux = xSemaphoreCreateMutex();
 
@@ -577,14 +589,11 @@ void app_main(void)
   button_init();
   pwm_init();
 
-  // Create tasks for receive, send, set gpio, and button -- 2023 -- no changes
-
-  // *****Create one receiver and one transmitter (but not both)
-  // xTaskCreate(recv_task, "uart_rx_task", 1024*4, NULL, configMAX_PRIORITIES, NULL);
-  // *****Create one receiver and one transmitter (but not both)
-  xTaskCreate(send_task, "uart_tx_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
-  xTaskCreate(id_task, "set_id_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
-  xTaskCreate(button_task, "button_task", 1024 * 2, NULL, configMAX_PRIORITIES, NULL);
+  // TASKS
+  xTaskCreate(udp_client_task, "udp_client", 4096, NULL, configMAX_PRIORITIES, NULL);
+  xTaskCreate(send_task, "uart_tx_task", 1024*2, NULL, configMAX_PRIORITIES-1, NULL);
+  xTaskCreate(id_task, "set_id_task", 1024*2, NULL, configMAX_PRIORITIES-2, NULL);
+  xTaskCreate(button_task, "button_task", 1024*2, NULL, configMAX_PRIORITIES-3, NULL);
   while (1)
   {
     vTaskDelay(1000 / portTICK_PERIOD_MS);

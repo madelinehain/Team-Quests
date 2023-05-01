@@ -7,6 +7,9 @@ var http = require('http').Server(app);
 var io = require('socket.io')(http);
 // const fs = require('fs')
 
+var PORT_ESP = 3333;          // Port where the thermistor data comes from
+var HOST = '192.168.1.6'; // Server Host Address (whatever is running this node server)
+
 // 
 const PORT_LOCAL = 3000;
 
@@ -66,7 +69,7 @@ io.on('connection', function(socket){
 
 // Listening on localhost:3000
 http.listen(PORT_LOCAL, function() {
-  console.log('listening on *:3000');
+  console.log(`Server is running on port ${PORT_LOCAL}`);
 });
 
 // Every 15 seconds, write random information
@@ -97,3 +100,4 @@ function intervalFunc() {
 // Do every 1500 ms
 setInterval(intervalFunc, 1500);
 
+server.bind(PORT_ESP, HOST);

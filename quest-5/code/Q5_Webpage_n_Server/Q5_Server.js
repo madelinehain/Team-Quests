@@ -23,8 +23,8 @@ const db = new Db('./mydb', {});
 const collection = db.collection('scooterCollection');
 
 // Store data in LevelDB
-var key = Date.now().toString();
-var value = 1234;
+// var key = Date.now().toString();
+// var value = 1234;
 // db.put(key, value, function (err) {
 //   if (err) return console.log('Ooops!', err) // some kind of I/O error
 //   console.log('Data stored in LevelDB:', key, value)
@@ -44,8 +44,10 @@ collection.insert(scooterID_fobID, (error, result) => {
 
 
 // randomly generated N = 10 length array 0 <= A[N] <= 9
-var random_array = Array.from({length: 15}, () => Math.floor(Math.random() * 9));
+var random_array = Array.from({length: 8}, () => Math.floor(Math.random() * 9));
 let server_send_message = random_array.join('');
+
+var valid_SID_FID_pair_counter = 0;
 
 // Handle incoming messages from the UDP socket
 server.on('message', function (message, remote) {
@@ -64,8 +66,32 @@ server.on('message', function (message, remote) {
     } 
     else {
       if (doc) {
+        valid_SID_FID_pair_counter = 3; // set valid pair count to 3
+
         // The message is already in the database
         console.log('Message already in database:', doc);
+
+        // // Send Out Random Key to Clients
+        // server.send(server_send_message,remote.port,remote.address,function(error){
+        //   if(error){
+        //     console.log('Server Send Error!');
+        //   }
+        //   // If no error: Send Message to CLient(s)
+        //   else{
+        //     console.log('Sent: ' + server_send_message);
+        //     // server_send_message = "Ok!"
+        //   }
+        // });
+      } 
+      else {
+        // The message is not in the database yet
+        console.log('Message not in database:', message);
+
+        valid_SID_FID_pair_counter += -1; // decrease valid pair count by 1
+      }
+
+      // If there was a recent valid SID-FID pair . . .
+      if (valid_SID_FID_pair_counter > 0) {
 
         // Send Out Random Key to Clients
         server.send(server_send_message,remote.port,remote.address,function(error){
@@ -78,11 +104,22 @@ server.on('message', function (message, remote) {
             // server_send_message = "Ok!"
           }
         });
-      } 
-      else {
-        // The message is not in the database yet
-        console.log('Message not in database:', message);
       }
+      else {
+        // Send Out "No Key" to Clients
+        server.send("No Key",remote.port,remote.address,function(error){
+          if(error){
+            console.log('Server Send Error!');
+          }
+          // If no error: Send Message to CLient(s)
+          else{
+            console.log('Sent: ' + "No Key");
+            // server_send_message = "Ok!"
+          }
+        });
+      }
+
+
     }
   });
 
