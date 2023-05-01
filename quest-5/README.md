@@ -1,8 +1,8 @@
-# Space and Occupancy
+# NFC Scooter Key Fob
 
-Authors: Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
+Authors: Maxwell Bakalos, Miguel Ianus-Valdiva, Madeline Hain, Emre Karabay, 
 
-Date: 2023-04-29
+Date: 2023-04-30
 
 ### Summary
 
