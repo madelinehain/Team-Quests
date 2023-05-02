@@ -1,8 +1,16 @@
+/*
+  Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
+  EC444 Smart & Connected Systems
+  Quest 5 - NFC Scooter Key Fob
+  UDP Server for Thermistor, Video, & LED Button
+  5/2/2023
+*/
+
 // MODULES
 // Wifi
 var dgram = require('dgram');
 // Port and IP
-var PORT_ESP = 3333;        // Port where the thermistor data comes from
+var PORT_CLIENT = 3333;        // Port where the thermistor data comes from
 var HOST = '192.168.1.6';   // Server Host Address (whatever is running this node server)
 const PORT = process.env.PORT || 8080;  // Port where server is running from "NodeServerHostIP:PORT"
 // Create socket
@@ -11,26 +19,13 @@ var server = dgram.createSocket('udp4');
 var express = require('express');
 var app = express();
 
-// LevelDB
-// var levelup = require('level');
-// var db = levelup('./mydb'); // Replace with your own path
-// const { Level } = require('level')
-// // Create a database
-// const db = new Level('./mydb', { valueEncoding: 'json' })
-
 const { Db } = require('tingodb')({ memStore: true });
 const db = new Db('./mydb', {});
 const collection = db.collection('scooterCollection');
 
-// Store data in LevelDB
-// var key = Date.now().toString();
-// var value = 1234;
-// db.put(key, value, function (err) {
-//   if (err) return console.log('Ooops!', err) // some kind of I/O error
-//   console.log('Data stored in LevelDB:', key, value)
-// });
-// Put Scooter ID -FOb ID Pair in Database
-var scooterID_fobID = {A: "Scooter1", B: "Fob1"};
+
+// Put Scooter ID -Fob ID Pair in Database
+var scooterID_fobID = {A: "SID01", B: "FID01"};
 collection.insert(scooterID_fobID, (error, result) => {
     if (error) {
       console.error(error);
@@ -38,9 +33,6 @@ collection.insert(scooterID_fobID, (error, result) => {
       console.log(result);
     }
 });
-
-// const message = {A: 123, B: 'aloha'};
-// const message = document;
 
 
 // randomly generated N = 10 length array 0 <= A[N] <= 9
@@ -59,8 +51,10 @@ server.on('message', function (message, remote) {
   // Split Message from string to array: "SID, FID" --> ["SID", "FID"]
   var message_SID_FID  = mes_str.split(/[ ,]+/);
 
+//   console.log(message_SID_FID[0]); // debug received message
+
   // Find the first document that matches the message
-  collection.findOne({ A: message_SID_FID[0], B: message_SID_FID[1] }, function(err, doc) {
+  collection.findOne({ A: message_SID_FID[2], B: message_SID_FID[3] }, function(err, doc) {
     if (err) {
       console.log(err);
     } 
@@ -137,7 +131,11 @@ server.on('listening', function () {
 });
 
 // Bind server to port and IP
-server.bind(PORT_ESP, HOST);
+server.bind({
+    address: HOST,
+    port: PORT_CLIENT,
+    // exclusive: true
+});
 
 // Start the Server
 app.listen(PORT, () => {
