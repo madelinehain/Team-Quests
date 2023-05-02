@@ -37,7 +37,7 @@ function send_SID() {
     var SID_message = 'test1, test2';
 
     // Read CSV File Into an Array
-    fs.createReadStream('barcode.csv')
+    fs.createReadStream('barcodes.csv')
     .pipe(csv.parse())      // fixed by using csv.parse() instead of csv()
     .on('data', (row) => {
         console.log(row);
