@@ -1,7 +1,7 @@
 /*
   Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
   EC444 Smart & Connected Systems
-  Quest 3 - Cat Tracker
+  Quest 5 - NFC Scooter Key Fob
   UDP Server for Thermistor, Video, & LED Button
   4/30/2023
 */
@@ -10,7 +10,7 @@ const dgram = require('dgram');
 var fs = require('fs');
 
 const HOST = '192.168.1.6'; // server address
-const PORT = 8080;          // server port
+const PORT = 3333;          // server(client?) port
 const client = dgram.createSocket('udp4');
 var csv = require("csv-parse");
 
