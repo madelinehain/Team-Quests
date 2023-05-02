@@ -9,20 +9,35 @@
 const dgram = require('dgram');
 var fs = require('fs');
 
-const HOST = '192.168.1.6';
-const PORT = 30000;
+const HOST = '192.168.1.6'; // server address
+const PORT = 30000;         // server port
 const client = dgram.createSocket('udp4');
 var csv = require("csv-parse");
 
-var QR_data = [];  // Array to hold all csv data
-var SID_message = 'test1, test2';
+client.on('error', (err) => {
+    console.log(`UDP socket error: ${err}`);
+});
+
+client.on('message', (msg, rinfo) => {
+    console.log(`UDP message received from ${rinfo.address}:${rinfo.port}: ${msg}`);
+});
+
+client.bind(PORT, () => {
+    console.log('UDP socket is listening');
+});
+
+// var QR_data = [];  // Array to hold all csv data
+// var SID_message = 'test1, test2';
 
 let send_interval = 2000;   // interval to send SID in milliseconds
 
 ///// WORKS
 function send_SID() {
+    var QR_data = [];  // Array to hold all csv data
+    var SID_message = 'test1, test2';
+
     // Read CSV File Into an Array
-    fs.createReadStream('barcodes.csv')
+    fs.createReadStream('barcode.csv')
     .pipe(csv.parse())      // fixed by using csv.parse() instead of csv()
     .on('data', (row) => {
         console.log(row);
@@ -43,7 +58,6 @@ function send_SID() {
         client.send(message, 0, message.length, PORT, HOST, function(err, bytes) {
             if (err) throw err;
             console.log('UDP message sent to ' + HOST +':'+ PORT);
-            client.close();
         });
 
     });
