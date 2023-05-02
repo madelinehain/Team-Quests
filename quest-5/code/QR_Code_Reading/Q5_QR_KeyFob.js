@@ -22,7 +22,7 @@ let send_interval = 2000;   // interval to send SID in milliseconds
 ///// WORKS
 function send_SID() {
     // Read CSV File Into an Array
-    fs.createReadStream('QR_Code_Data.csv')
+    fs.createReadStream('barcodes.csv')
     .pipe(csv.parse())      // fixed by using csv.parse() instead of csv()
     .on('data', (row) => {
         console.log(row);
