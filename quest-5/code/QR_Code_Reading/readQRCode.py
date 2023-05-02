@@ -42,6 +42,7 @@ while True:
     # if the barcode text is currently not in our CSV file, write
     # the timestamp + barcode to disk and update the set
         # if barcodeData not in found:
+        csv.writerow(0)
         csv.write("{},{}".format(datetime.datetime.now(), barcodeData))
         csv.flush()
         found.add(barcodeData)
