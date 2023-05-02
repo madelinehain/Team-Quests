@@ -10,7 +10,7 @@ const dgram = require('dgram');
 var fs = require('fs');
 
 const HOST = '192.168.1.6'; // server address
-const PORT = 30000;         // server port
+const PORT = 8080;          // server port
 const client = dgram.createSocket('udp4');
 var csv = require("csv-parse");
 
