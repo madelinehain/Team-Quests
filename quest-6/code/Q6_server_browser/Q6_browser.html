@@ -43,6 +43,8 @@
       &#128663  Quest 6: Rally  &#128663
     </title1>
     <br><br>
+    <div class="horiz_center"><button id="startButton" style="font-size: larger;background-color: red; border-color: pink; color: white;height: 60px; width: 120px;">START</button></div>
+    <br>
     <div class="horiz_center"><button id="stopButton" style="font-size: larger;background-color: red; border-color: pink; color: white;height: 60px; width: 120px;">STOP</button></div>
     <br>
     <br><br>
@@ -73,7 +75,21 @@
     <!-- Script for LED Button Press -->
     <script>
       var button_str = "Unknown"
+      
+      $('#startButton').on('click', function() {
+        console.log("START")
+        
+        button_str = "START"
   
+        document.getElementById("ledState").innerHTML = button_str; // display startButton state text
+        
+        $.ajax({
+          type: 'POST',
+          url: '/startButton',
+          data: { ID: 'someid' },
+        });
+      });
+
       $('#stopButton').on('click', function() {
         console.log("STOP")
         

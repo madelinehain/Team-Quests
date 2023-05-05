@@ -19,19 +19,22 @@ var server = dgram.createSocket('udp4');
 var express = require('express');
 var app = express();
 var path = require('path');
-var csv = require("csv-parse");
+// var csv = require("csv-parse");
 // Create CSV File
-var fs = require('fs');
+// var fs = require('fs');
 // Button for LED
-const bodyParser = require('body-parser');
+// const bodyParser = require('body-parser');
 
-const drive_control_send_interval = 500;    // interval (milliseconds) between sending driving commands
+// const drive_control_send_interval = 500;    // interval (milliseconds) between sending driving commands
 var server_send_message = "Ok!"   // Message Sent to ESP32
 
 
 /////////////////////////////////////////////////////////////
 //  Receive Steering & Throttle Signal from HTML Buttons  //
 ////////////////////////////////////////////////////////////
+
+// // Listen for Button Pressed Signal from HTML Page //////////
+// app.use(bodyParser.urlencoded({ extended: true })); 
 
 // Direction Signals
 app.post('/leftButton', (req, res) => {
@@ -56,6 +59,10 @@ app.post('/stopButton', (req, res) => {
     console.log("Stop")
     server_send_message = "Stop"
 });
+app.post('/startButton', (req, res) => {
+    console.log("Start")
+    server_send_message = "Start"
+});
 app.post('/slowButton', (req, res) => {
     console.log("Slow")
     server_send_message = "Slow"
@@ -69,6 +76,21 @@ app.post('/fastButton', (req, res) => {
     server_send_message = "Fast"
 });
 
+// On connection, print out received message
+server.on('message', function (message, remote) {
+    console.log(remote.address + ':' + remote.port +' - ' + message);
+
+    // Send Driving Control Message
+    server.send(server_send_message, remote.port, remote.address, function(error){
+        if(error){
+          console.log('Driving Control Send Error!');
+        }
+        else{
+          console.log('Sent: ' + server_send_message);
+        }
+    });
+});
+
 
 /////////////////////
 //  Server Stuff  //
@@ -80,12 +102,14 @@ server.on('listening', function () {
     console.log('UDP Server listening on ' + address.address + ":" + address.port);
 });
 
+// // Bind server to port and IP
+// server.bind({
+//     address: HOST,
+//     port: PORT_CLIENT,
+//     // exclusive: true
+// });
 // Bind server to port and IP
-server.bind({
-    address: HOST,
-    port: PORT_CLIENT,
-    // exclusive: true
-});
+server.bind(PORT_CLIENT, HOST);
 
 // viewed at http://localhost:8080
 app.get('/', function(req, res) {
@@ -99,7 +123,13 @@ app.use(express.static('jQuery_File'))
 server.on('error', (err) => {
     console.log(`server error:\n${err.stack}`);
     server.close();
-  });
+});
+
+// Create server that listens on a port
+server.on('listening', function () {
+  var address = server.address();
+  console.log('UDP Server listening on ' + address.address + ":" + address.port);
+});
 
 // Start the Server
 app.listen(PORT, () => {
@@ -119,3 +149,22 @@ app.listen(PORT, () => {
 //     });
 // }
 // setInterval(send_drive_control, drive_control_send_interval);
+
+
+// // On connection, print out received message
+// server.on('message', function (message, remote) {
+//     console.log(remote.address + ':' + remote.port +' - ' + message);
+
+//     // Send Driving Control Message
+//     server.send(server_send_message, PORT_CLIENT, remote.address, function(error){
+//         if(error){
+//           console.log('Driving Control Send Error!');
+//         }
+//         else{
+//           console.log('Sent: ' + server_send_message);
+//         }
+//     });
+// });
+
+
+

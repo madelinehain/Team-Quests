@@ -53,31 +53,23 @@ app.use(bodyParser.urlencoded({ extended: true }));
 // });
 
 // Receive Buggy Motor Toggle Signal
-app.post('/startButton', (req, res) => {
-
-  console.log("START PRESSED!!!")
-  server_send_message = "START"
-  startStop_toggle = 1 // set buggy to START
-
+app.post('/left', (req, res) => {
+  console.log("Left")
+  server_send_message = "Left"
+});
+app.post('/right', (req, res) => {
+  console.log("Right")
+  server_send_message = "Right"
+});
+app.post('/forward', (req, res) => {
+  console.log("Forward")
+  server_send_message = "Forward"
+});
+app.post('/reverse', (req, res) => {
+  console.log("Reverse")
+  server_send_message = "Reverse"
 });
 
-// Receive Buggy Motor Toggle Signal
-app.post('/stopButton', (req, res) => {
-
-  console.log("STOP PRESSED!!!")
-  server_send_message = "STOP"
-  startStop_toggle = 0 // set buggy to STOP
-
-});
-
-// Receive Buggy Motor Toggle Signal
-app.post('/emergencyStopButton', (req, res) => {
-
-  console.log("EMERGENCY STOP PRESSED!!!")
-  server_send_message = "EMERGENCY_STOP"
-  startStop_toggle = 0 // set buggy to STOP
-
-});
 
 
 
@@ -87,11 +79,6 @@ server.on('listening', function () {
   console.log('UDP Server listening on ' + address.address + ":" + address.port);
 });
 
-// // Create CSV File
-// fs.open('Sensor_Output.csv', 'w', function (err, file) {
-//   if (err) throw err;
-//   console.log('Saved File!');
-// }); 
 
 // let data_str = ""
 // On connection, print out received message
