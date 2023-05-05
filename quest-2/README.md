@@ -5,7 +5,7 @@ Authors: Madeline Hain, Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay
 Date: 2023-04-29
 
 ### Summary
-Each sensor is read by the ESP32 on a different pin, and then the data is formatted into a CSV print statement. This printed data is read on the port by the NodeJS server. The server then takes the new sample of the data and appends it to the end of a CSV file called "Serial_Output1.csv". The server then takes the entire csv file, reads it into an array, and then send it to the HTML webpage. The HTML code reads each column of the array (each sensor's data" and plots them using multiple graphs in CanvasJS
+Each sensor is read by the ESP32 on a different pin, and then the data is formatted into a CSV print statement. This printed data is read on the port by the NodeJS server. The server then takes the new sample of the data and appends it to the end of a CSV file called "Serial_Output1.csv". The server then takes the entire csv file, reads it into an array, and then send it to the HTML webpage. The HTML code reads each column of the array (each sensor's data" and plots them using multiple graphs in CanvasJS. Connections are established between the ESP32, server, and html page.
 
 ### Self-Assessment 
 
@@ -26,20 +26,22 @@ Each sensor is read by the ESP32 on a different pin, and then the data is format
 
 ### Sketches/Diagrams
 <p align="center">
-<img src="./images/ece444.png" width="50%">
+<img src="./images/Q2 sketch.jpg" width="50%">
 </p>
 <p align="center">
-Caption Here
+Diagram
 </p>
+
 
 
 
 ### Supporting Artifacts
-- [Link to video technical presentation](). Not to exceed 120s
-- [Link to video demo](). Not to exceed 120s
+- Technical Presentation: https://drive.google.com/file/d/1oB-cw2UBdYzrmxq0uxqrgMRPZhFhqJhY/view?usp=share_link
+- Demo: https://drive.google.com/file/d/1ftcqo4_MjZTf0XmIZ267USkCA186LuX4/view?usp=share_link
 
 
 ### Modules, Tools, Source Used Including Attribution
+
 
 ### References
 
