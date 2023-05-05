@@ -1,8 +1,13 @@
 # Code Readme
 
-Please describe what is in your code folder and subfolders. Make it
-easy for us to navigate this space.
+Q5-31__Database contains skill 31
 
-Also
-- Please provide your name and date in any code submitted
-- Indicate attributrion for any code you have adopted from elsewhere
+Q5_Database_Server contains the NodeJS server database
+
+Q5_IR_Reveiver_UDP contains the KeyFob ESP32 code
+
+Q5_IR_Sender_UDP contains the scooter ESP32 code
+
+Q5_Webpage_n_Server contains old code
+
+QR_Code_Reading contains the code for the Raspberry Pi KeyFob
