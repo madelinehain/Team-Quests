@@ -1,0 +1,198 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Quest 6: Rally</title>
+    <script src="/jquery-3.6.4.js"></script>
+</head>
+
+<style>
+    h1 {
+      text-shadow: 1px 3px 2px orangered;
+    }
+    .horiz_center {
+      text-align: center;
+      margin-left: auto;
+      margin-right: auto;
+      display: block;
+    }
+  
+    .vert_center {
+      text-align: center;
+      display: block;
+      padding: 30px 0;
+    }
+  
+    title1 {
+      text-shadow: 4px 3px 3px darkcyan;
+    }
+  
+    #grad1 {
+      background-color: #9198e5; /* For browsers that do not support gradients */
+    }
+</style>
+<body>
+    <title1 class="vert_center" id = "grad1" style="color: aqua; font-size: xxx-large ; height: 100px;font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;">
+      &#128663  Quest 6: Rally  &#128663
+    </title1>
+    <br><br>
+
+<div style = "position:absolute; left:20px; top:200px; background-color:white;">
+<div class="horiz_center"><button id="startButton" style="font-size: larger; background-color: red; border-color: pink; color: white; height: 60px; width: 120px;">START</button></div>
+<p>&nbsp;</p>
+
+<div class="horiz_center"><button id="stopButton" style="font-size: larger; background-color: red; border-color: pink; color: white; height: 60px; width: 120px;">STOP</button></div>
+</div>
+
+<div style = "position:absolute; left:150px; top:200px; background-color:white;">
+<div class="horiz_center"><button id="forwardButton" style="font-size: larger; background-color: green; border-color: greenyellow; color: white; height: 60px; width: 120px;">FORWARD</button></div>
+<p>&nbsp;</p>
+<div class="horiz_center"><button id="reverseButton" style="font-size: larger; background-color: green; border-color: greenyellow; color: white; height: 60px; width: 120px;">REVERSE</button></div>
+<p>&nbsp;</p>
+<div class="horiz_center"><button id="rightButton" style="font-size: larger; background-color: green; border-color: greenyellow; color: white; height: 60px; width: 120px;">RIGHT</button></div>
+<p>&nbsp;</p>
+<div class="horiz_center"><button id="leftButton" style="font-size: larger; background-color: green; border-color: greenyellow; color: white; height: 60px; width: 120px;">LEFT</button></div>
+</div>
+<div style = "position:absolute; left:280px; top:200px; background-color:white;">
+<div class="horiz_center"><button id="slowButton" style="font-size: larger; background-color: blue; border-color: greenyellow; color: white; height: 60px; width: 120px;">SLOW</button></div>
+<p>&nbsp;</p>
+<div class="horiz_center"><button id="mediumButton" style="font-size: larger; background-color: blue; border-color: greenyellow; color: white; height: 60px; width: 120px;">MEDIUM</button></div>
+<p>&nbsp;</p>
+<div class="horiz_center"><button id="fastButton" style="font-size: larger; background-color: blue; border-color: greenyellow; color: white; height: 60px; width: 120px;">FAST</button></div>
+<p><br /><br /><br /></p>
+<p>&nbsp;</p>
+<!-- <img name="main" class="horiz_center" id="main" border="0" width="640" height="480" src="http://192.168.1.33:8081"> -->
+<p>&nbsp;</p>
+<!-- Script for LED Button Press -->
+<script>
+  var button_str = "Unknown"
+  
+  $('#startButton').on('click', function() {
+    console.log("START")
+    
+    button_str = "START"
+
+    document.getElementById("ledState").innerHTML = button_str; // display startButton state text
+    
+    $.ajax({
+      type: 'POST',
+      url: '/startButton',
+      data: { ID: 'someid' },
+    });
+  });
+
+  $('#stopButton').on('click', function() {
+    console.log("STOP")
+    
+    button_str = "STOP"
+
+    document.getElementById("ledState").innerHTML = button_str; // display stopButton state text
+    
+    $.ajax({
+      type: 'POST',
+      url: '/stopButton',
+      data: { ID: 'someid' },
+    });
+  });
+
+  $('#forwardButton').on('click', function() {
+    console.log("FORWARD")
+    
+    button_str = "FORWARD"
+
+    document.getElementById("ledState").innerHTML = button_str; // display stopButton state text
+    
+    $.ajax({
+      type: 'POST',
+      url: '/forwardButton',
+      data: { ID: 'someid' },
+    });
+  });
+
+  $('#reverseButton').on('click', function() {
+    console.log("REVERSE")
+    
+    button_str = "REVERSE"
+
+    document.getElementById("ledState").innerHTML = button_str; // display stopButton state text
+    
+    $.ajax({
+      type: 'POST',
+      url: '/reverseButton',
+      data: { ID: 'someid' },
+    });
+  });
+
+  $('#rightButton').on('click', function() {
+    console.log("RIGHT")
+    
+    button_str = "RIGHT"
+
+    document.getElementById("ledState").innerHTML = button_str; // display stopButton state text
+    
+    $.ajax({
+      type: 'POST',
+      url: '/rightButton',
+      data: { ID: 'someid' },
+    });
+  });
+
+  $('#leftButton').on('click', function() {
+    console.log("LEFT")
+    
+    button_str = "LEFT"
+
+    document.getElementById("ledState").innerHTML = button_str; // display stopButton state text
+    
+    $.ajax({
+      type: 'POST',
+      url: '/leftButton',
+      data: { ID: 'someid' },
+    });
+  });
+
+  $('#slowButton').on('click', function() {
+    console.log("SLOW")
+    
+    button_str = "SLOW"
+
+    document.getElementById("ledState").innerHTML = button_str; // display stopButton state text
+    
+    $.ajax({
+      type: 'POST',
+      url: '/slowButton',
+      data: { ID: 'someid' },
+    });
+  });
+
+  $('#mediumButton').on('click', function() {
+    console.log("MEDIUM")
+    
+    button_str = "MEDIUM"
+
+    document.getElementById("ledState").innerHTML = button_str; // display stopButton state text
+    
+    $.ajax({
+      type: 'POST',
+      url: '/mediumButton',
+      data: { ID: 'someid' },
+    });
+  });
+
+  $('#fastButton').on('click', function() {
+    console.log("FAST")
+    
+    button_str = "FAST"
+
+    document.getElementById("ledState").innerHTML = button_str; // display stopButton state text
+    
+    $.ajax({
+      type: 'POST',
+      url: '/fastButton',
+      data: { ID: 'someid' },
+    });
+  });
+
+</script>
+</body>
+</html>
