@@ -110,24 +110,24 @@ server.on('message', function (message, remote) {
 });
 
 
-const ADDR_ESP = '192.168.1.25';
-const PORT_ESP = 3333;
+// const ADDR_ESP = '192.168.1.25';
+// const PORT_ESP = 3333;
 
-var interval_id = setInterval(function send2display() {
+// var interval_id = setInterval(function send2display() {
 
-  // Get the Message for the Alphanumeric Display
-  server_send_message = avg_diff.toString();
+//   // Get the Message for the Alphanumeric Display
+//   server_send_message = avg_diff.toString();
 
-  server.send(server_send_message, PORT_ESP, ADDR_ESP, function(error){
-    if(error){
-      console.log('Server Send Error!');
-    }
-    // If no error: Send Message to CLient(s)
-    else{
-      console.log('Sent: ' + server_send_message);
-    }
-  });
-}, 1000); // periodically call function
+//   server.send(server_send_message, PORT_ESP, ADDR_ESP, function(error){
+//     if(error){
+//       console.log('Server Send Error!');
+//     }
+//     // If no error: Send Message to CLient(s)
+//     else{
+//       console.log('Sent: ' + server_send_message);
+//     }
+//   });
+// }, 1000); // periodically call function
 
 
 
