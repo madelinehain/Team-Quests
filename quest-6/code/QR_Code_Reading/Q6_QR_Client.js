@@ -29,7 +29,7 @@ client.bind(PORT, () => {
 // var QR_data = [];  // Array to hold all csv data
 // var SID_message = 'test1, test2';
 
-let send_interval = 2000;   // interval to send SID in milliseconds
+let send_interval = 500;   // interval to send SID in milliseconds
 
 ///// WORKS
 function send_SID() {
