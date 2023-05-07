@@ -94,12 +94,16 @@ server.on('message', function (message, remote) {
 
 });
 
+
+const ADDR_ESP = '192.168.1.25';
+const PORT_ESP = 3333;
+
 function send2display() {
 
   // Get the Message for the Alphanumeric Display
   server_send_message = avg_diff.toString();
 
-  server.send(server_send_message,remote.port,remote.address,function(error){
+  server.send(server_send_message, PORT_ESP, ADDR_ESP, function(error){
     if(error){
       console.log('Server Send Error!');
     }
