@@ -29,68 +29,65 @@ var server_send_message = 0;
 server.on('message', function (message, remote) {
   console.log(remote.address + ':' + remote.port +' - ' + message);
   counter++;
-  // Extract timestamp from message using regular expression
-  // const timestamp_str = message.toString().match(/^\d+\.\d+/)[0];
-  // const timestamp_num = parseFloat(timestamp_str);
   
-  // Calculate time difference between current and previous timestamps
-  // const diff = timestamp_num - prev_timestamp_num;
-  
-  // Switch case for QR data color
-  let qrdata = message.slice(14, 15);
-  let checkpoint;
-  switch (qrdata) {
-    case "R":
-      checkpoint = 1;
-      break;
-    case "S":
-      checkpoint = 2;
-      break;
-    case "B":
-      checkpoint = 3;
-      break;
-    case "G":
-      checkpoint = 4;
-      break;
-    default:
-      checkpoint = 0;
-  }
-  
-  // Calculate rolling average
-  // avg = (avg * counter + diff) / (counter + 1);
-  // counter++;
-  
-  // Convert message to string and append rolling average and time difference
-  const mes_str = message.toString();
-
-  const message_SID_FID = mes_str.split(/[ ,]+/);
-  var current_timestamp = message_SID_FID[1];
-  var a = current_timestamp.split(':'); // split it at the colons
-  // minutes are worth 60 seconds. Hours are worth 60 minutes.
-  var current_seconds = (+a[0]) * 60 * 60 + (+a[1]) * 60 + (+a[2]); 
-  var diff = current_seconds - prev_seconds;
-
-  if (counter == 1){
-      avg_diff = diff;
-  }
-
-  avg = ((avg * counter) + diff) / (counter);
-  avg_diff = ((avg_diff * counter) + diff) / (counter);
-  
-  // Insert message_SID_FID into collection
-  const messageObj = {date: message_SID_FID[0], time: message_SID_FID[1], qr: message_SID_FID[2], checkpoint, avg, diff, avg_diff, counter};
-  collection.insert(messageObj, (error, result) => {
-    if (error) {
-      console.error(error);
-    } else {
-      console.log(result);
+  // Check if the message is from the QR Code Reader
+  if (remote.address == '192.168.1.33') {
+    // Switch case for QR data color
+    let qrdata = message.slice(14, 15);
+    let checkpoint;
+    switch (qrdata) {
+      case "R":
+        checkpoint = 1;
+        break;
+      case "S":
+        checkpoint = 2;
+        break;
+      case "B":
+        checkpoint = 3;
+        break;
+      case "G":
+        checkpoint = 4;
+        break;
+      default:
+        checkpoint = 0;
     }
-  });
+    
+    // Calculate rolling average
+    // avg = (avg * counter + diff) / (counter + 1);
+    // counter++;
+    
+    // Convert message to string and append rolling average and time difference
+    const mes_str = message.toString();
+
+    const message_SID_FID = mes_str.split(/[ ,]+/);
+    var current_timestamp = message_SID_FID[1];
+    var a = current_timestamp.split(':'); // split it at the colons
+    // minutes are worth 60 seconds. Hours are worth 60 minutes.
+    var current_seconds = (+a[0]) * 60 * 60 + (+a[1]) * 60 + (+a[2]); 
+    var diff = current_seconds - prev_seconds;
+
+    if (counter == 1){
+        avg_diff = diff;
+    }
+
+    avg = ((avg * counter) + diff) / (counter);
+    avg_diff = ((avg_diff * counter) + diff) / (counter);
+    
+    // Insert message_SID_FID into collection
+    const messageObj = {date: message_SID_FID[0], time: message_SID_FID[1], qr: message_SID_FID[2], checkpoint, avg, diff, avg_diff, counter};
+    collection.insert(messageObj, (error, result) => {
+      if (error) {
+        console.error(error);
+      } else {
+        console.log(result);
+      }
+    });
+    
+    // Update previous Average Transit Time (seconds)
+    prev_seconds = current_seconds;
+  }
   
-  // Update previous timestamp number
-  // prev_timestamp_num = timestamp_num;
-  // prev_timestamp = current_timestamp;
-  prev_seconds = current_seconds;
+  
 
 });
 
