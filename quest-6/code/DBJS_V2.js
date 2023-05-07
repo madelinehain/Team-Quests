@@ -29,6 +29,8 @@ var server_send_message = 0;
 server.on('message', function (message, remote) {
   console.log(remote.address + ':' + remote.port +' - ' + message);
   counter++;
+
+  console.log('Remote Address: ' + remote.address);
   
   // Check if the message is from the QR Code Reader
   if (remote.address == '192.168.1.33') {
@@ -89,11 +91,21 @@ server.on('message', function (message, remote) {
   // Check if the message is from the ESP32 Alphanumeric Display
   else if (remote.address == '192.168.1.25') {
     console.log('Message from ESP32: ' + message.toString());
-  }
 
-  console.log('Remote Address: ' + remote.address);
-  
-  
+    // Get the Message we will send to the Alphanumeric Display
+    server_send_message = avg_diff.toString();
+
+    // Send it
+    server.send(server_send_message, remote.port, remote.address, function(error){
+      if(error){
+        console.log('Server Send Error!');
+      }
+      // If no error: Send Message to CLient(s)
+      else{
+        console.log('Sent: ' + server_send_message);
+      }
+    });
+  }
 
 });
 
