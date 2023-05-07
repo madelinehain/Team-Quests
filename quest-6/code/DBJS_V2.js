@@ -88,6 +88,17 @@ server.on('message', function (message, remote) {
     // prev_timestamp_num = timestamp_num;
     // prev_timestamp = current_timestamp;
     prev_seconds = current_seconds;
+    let server_send_message = avg_diff.toString();
+    server.send(server_send_message,remote.port,remote.address,function(error){
+      if(error){
+        console.log('Server Send Error!');
+      }
+      // If no error: Send Message to CLient(s)
+      else{
+        console.log('Sent: ' + server_send_message);
+        // server_send_message = "Ok!"
+      }
+    });
   });  
 
 server.on('error', (err) => {
