@@ -90,6 +90,8 @@ server.on('message', function (message, remote) {
   else if (remote.address == '192.168.1.25') {
     console.log('Message from ESP32: ' + message.toString());
   }
+
+  console.log('Remote Address: ' + remote.address);
   
   
 
