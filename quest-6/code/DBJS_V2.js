@@ -98,7 +98,7 @@ server.on('message', function (message, remote) {
 const ADDR_ESP = '192.168.1.25';
 const PORT_ESP = 3333;
 
-function send2display() {
+var interval_id = setInterval(function send2display() {
 
   // Get the Message for the Alphanumeric Display
   server_send_message = avg_diff.toString();
@@ -112,8 +112,7 @@ function send2display() {
       console.log('Sent: ' + server_send_message);
     }
   });
-}
-setTimeout(send2display, 1000); // periodically call function
+}, 1000); // periodically call function
 
 
 
