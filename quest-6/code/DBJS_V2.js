@@ -86,6 +86,10 @@ server.on('message', function (message, remote) {
     // Update previous Average Transit Time (seconds)
     prev_seconds = current_seconds;
   }
+  // Check if the message is from the ESP32 Alphanumeric Display
+  else if (remote.address == '192.168.1.25') {
+    console.log('Message from ESP32: ' + message.toString());
+  }
   
   
 
