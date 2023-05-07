@@ -3,7 +3,7 @@
 const dgram = require('dgram');
 // Port and IP
 const PORT_CLIENT = 3333;        // Port where the thermistor data comes from
-const HOST = '192.168.1.34';   // Server Host Address (whatever is running this node server)
+const HOST = '192.168.1.6';   // Server Host Address (whatever is running this node server)
 const PORT = process.env.PORT || 8080;  // Port where server is running from "NodeServerHostIP:PORT"
 // Create socket
 const server = dgram.createSocket('udp4');
