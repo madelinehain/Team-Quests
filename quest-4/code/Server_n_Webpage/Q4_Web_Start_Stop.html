@@ -1,0 +1,124 @@
+<!-- 
+  Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
+  EC444 Smart & Connected Systems
+  Quest 4 - Road Trip
+  Website Observation Portal for Buggy
+  4/19/2023 
+-->
+<!-- "NodeServerHostIP:8080" (port 8080) -->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Quest 4: Road Trip</title>
+<!-- <script src="C:\BU\Semeter_8_(Spring2023)\EC_444\Buggy_Car\Wireless_Start_Stop\Server_n_Webpage\jQuery_File\jquery-3.6.4.js"></script> -->
+<!-- <script src="C:/BU/Semeter_8_(Spring2023)/EC_444/Buggy_Car/Wireless_Start_Stop/Server_n_Webpage/jquery-3.6.4.js"></script> -->
+<!-- <script src="/jquery-3.6.4.js" type="text/js"></script> -->
+<!-- <script language="JavaScript" type="text/javascript" src="/jquery.min.js"></script> -->
+<!-- <script src="/jquery-3.6.4.js" charset="UTF-8" type="text/javascript"></script> -->
+<script src="/jquery-3.6.4.js"></script>
+<!-- Start ConvasJS Graph Script -->
+</head>
+<body>
+  <title1 class="vert_center" id = "grad1" style="color: aqua; font-size: xxx-large ; height: 100px;font-family: 'Franklin Gothic Medium', 'Arial Narrow', Arial, sans-serif;">
+    &#128663  Quest 4: Road Trip  &#128663
+  </title1>
+  <br><br>
+  <!-- <div id="csv_chart_1" onclick="button_text_function()"style="width: 100%; height: 350px;display: inline-block;"></div><br/>     Chart 1 (from csv file) -->
+  <div class="horiz_center"><button id="startButton" style="font-size: larger;background-color: green; border-color: greenyellow; color: white;height: 60px; width: 120px;">START</button></div>
+  <br>
+  <div class="horiz_center"><button id="stopButton" style="font-size: larger;background-color: red; border-color: pink; color: white;height: 60px; width: 120px;">STOP</button></div>
+  <br>
+  <div class="horiz_center"><button id="emergencyStopButton" style="font-size: larger;background-color: black; border-color: crimson; color: red;height: 60px; width: 240px;">EMERGENCY STOP</button></div>
+  <br>
+  <h1 id="ledState" class="horiz_center" style="color: lightsalmon;font-family: “Comic Sans MS”, “Comic Sans”, cursive;border-color: aqua;">Unknown</h1><br/>
+  <div id = "grad1" style="height: 200px"></div>
+  <!-- <img name="main" class="horiz_center" id="main" border="0" width="640" height="480" src="http://192.168.1.33:8081"> -->
+  
+  <!-- Script for LED Button Press -->
+  <script>
+    var button_OnOff = 0
+    var button_str = "Unknown"
+
+    $('#startButton').on('click', function() {
+      console.log("START")
+      button_OnOff = 1 // flip startButton On
+      button_str = "START"
+
+      document.getElementById("ledState").innerHTML = button_str; // display startButton state text
+      
+      $.ajax({
+        type: 'POST',
+        url: '/startButton',
+        data: { ID: 'someid' },
+        success: function() {
+          alert("Toggled Buggy Motor");
+        }
+      });
+    });
+
+    $('#stopButton').on('click', function() {
+      console.log("STOP")
+      button_OnOff = 0 // flip stopButton Off
+      
+      button_str = "STOP"
+
+      document.getElementById("ledState").innerHTML = button_str; // display stopButton state text
+      
+      $.ajax({
+        type: 'POST',
+        url: '/stopButton',
+        data: { ID: 'someid' },
+        success: function() {
+          alert("Toggled Buggy Motor");
+        }
+      });
+    });
+
+    $('#emergencyStopButton').on('click', function() {
+      console.log("EMERGENCY STOP")
+      button_OnOff = 0 // flip stopButton Off
+      
+      button_str = "EMERGENCY STOP"
+
+      document.getElementById("ledState").innerHTML = button_str; // display stopButton state text
+      
+      $.ajax({
+        type: 'POST',
+        url: '/emergencyStopButton',
+        data: { ID: 'someid' },
+        success: function() {
+          alert("Toggled Buggy Motor");
+        }
+      });
+    });
+  </script>
+</body>
+<style>
+  h1 {
+    text-shadow: 1px 3px 2px orangered;
+  }
+  .horiz_center {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+  }
+
+  .vert_center {
+    text-align: center;
+    display: block;
+    padding: 30px 0;
+  }
+
+  title1 {
+    text-shadow: 4px 3px 3px darkcyan;
+  }
+
+  #grad1 {
+    background-color: #9198e5; /* For browsers that do not support gradients */
+    background-image: -moz-linear-gradient(#9198e5, #e66465);
+  }
+</style>
+</html>

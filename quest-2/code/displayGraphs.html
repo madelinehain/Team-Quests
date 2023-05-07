@@ -1,0 +1,222 @@
+<!-- 
+  Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
+  EC444 Smart & Connected Systems
+  Quest 2 - Space and Occupancy
+-->
+<!-- This code takes the array created from a CSV file which is created from the nodeJS server
+and puts in on an updating graph in the webpage of the "NodeServerHostIP:8080" (port 8080) -->
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Quest 2: Space and Occupancy</title>
+<script type="text/javascript" src="https://canvasjs.com/assets/script/jquery-1.11.1.min.js"></script>
+<script type="text/javascript" src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<!-- Start ConvasJS Graph Script -->
+
+<script type="text/javascript">
+  window.onload = function () {
+    
+    // const get_array_column = (array_2d, column_index) => array_2d.map(x => x[column_index])
+    // const arrayOfNumbers = (str_arr) => str_arr.map(Number);
+    
+    result_numbers_xy = []  // Datapoints to be shown on graph (from CSV file)
+    result_numbers_ab= []
+    result_numbers_cd= []
+    result_numbers_ef= []
+    // var last_10 = []
+
+    // Graph Chart 
+    var chart = new CanvasJS.Chart("csv_chart_1", {
+      // animationEnabled: true,
+          title:{
+              text: "Thermistor Live Readings (CSV Data)"
+          },
+          axisX: {
+              title: "Time",
+              suffix: " s",
+              interval: 1
+          },
+          axisY: {
+              title: "Temperature",
+              suffix: " °C"
+          },
+          toolTip:{
+          shared: true
+        },
+      data:
+          [{
+            name: "Data 1",
+            type: "spline",
+            yValueFormatString: "#0.###### °C",
+            showInLegend: true,
+            dataPoints: result_numbers_xy
+          }]
+      });
+      chart.render();
+
+    var ultChart = new CanvasJS.Chart("csv_chart_2", {
+      // animationEnabled: true,
+          title:{
+              text: "Ultrasonic Live Readings (CSV Data)"
+          },
+          axisX: {
+              title: "Time",
+              suffix: " s",
+              interval: 1
+          },
+          axisY: {
+              title: "Distance",
+              suffix: " m"
+          },
+          toolTip:{
+          shared: true
+        },
+      data:
+          [{
+            name: "Data 2",
+            type: "spline",
+            yValueFormatString: "#0.###### m",
+            showInLegend: true,
+            dataPoints: result_numbers_ab
+          }]
+      });
+      ultChart.render();
+
+      var IRChart = new CanvasJS.Chart("csv_chart_3", {
+      // animationEnabled: true,
+          title:{
+              text: "IR Live Readings (CSV Data)"
+          },
+          axisX: {
+              title: "Time",
+              suffix: " s",
+              interval: 1
+          },
+          axisY: {
+              title: "Distance",
+              suffix: " m"
+          },
+          toolTip:{
+          shared: true
+        },
+      data:
+          [{
+            name: "Data 3",
+            type: "spline",
+            yValueFormatString: "#0.###### m",
+            showInLegend: true,
+            dataPoints: result_numbers_cd
+          }]
+      });
+      IRChart.render();
+
+      var lightChart = new CanvasJS.Chart("csv_chart_4", {
+      // animationEnabled: true,
+          title:{
+              text: "Light Sensor Live Readings (CSV Data)"
+          },
+          axisX: {
+              title: "Time",
+              suffix: " s",
+              interval: 1
+          },
+          axisY: {
+              title: "Voltage",
+              suffix: " v"
+          },
+          toolTip:{
+          shared: true
+        },
+      data:
+          [{
+            name: "Data 4",
+            type: "spline",
+            yValueFormatString: "#0.###### v",
+            showInLegend: true,
+            dataPoints: result_numbers_ef
+          }]
+      });
+      lightChart.render();
+
+    // Update data for each chart
+    function updateData() {
+      $.ajax({url: "http://localhost:8080/data", success: function(result){
+        // console.log(result)
+        let latest_index = result.length
+        // console.log(latest_index)
+        //console.log('hi');
+
+        // Convert Data from Text to Numbers
+        result_numbers = result.map(function (obj) {
+          return [parseInt(obj[0]),parseFloat(obj[1]),parseFloat(obj[2]),parseFloat(obj[3]),parseFloat(obj[4])];
+        });
+
+        // Add the most recent datapoints 
+        result_numbers_xy.push({
+          x: result_numbers[latest_index-1][0],
+          y: result_numbers[latest_index-1][1]
+        })
+        result_numbers_ab.push({
+          x: result_numbers[latest_index-1][0],
+          y: result_numbers[latest_index-1][2]
+        })
+        result_numbers_cd.push({
+          x: result_numbers[latest_index-1][0],
+          y: result_numbers[latest_index-1][3]
+        })
+        result_numbers_ef.push({
+          x: result_numbers[latest_index-1][0],
+          y: result_numbers[latest_index-1][4]
+        })
+        // Shift data over once it's long enough
+        if (result_numbers_xy.length > 30) {
+          result_numbers_xy.shift();
+        }
+        if (result_numbers_ab.length > 30) {
+          result_numbers_ab.shift();
+        }
+        if (result_numbers_cd.length > 30) {
+          result_numbers_ab.shift();
+        }
+        if (result_numbers_ef.length > 30) {
+          result_numbers_ab.shift();
+        }
+
+        console.log(result_numbers_xy) // print current datapoints to console log
+      }});
+      // chart.clear();
+      chart.render();
+      ultChart.render();
+      IRChart.render();
+      lightChart.render();
+
+      // Call updateData() again in 1 second
+      setTimeout(updateData, 1000);
+    }
+
+    // Call updateData() once to start updating the charts
+    updateData();
+  }
+</script>
+</head>
+<body>
+  <div id="csv_chart_1" onclick="button_text_function()"style="width: 100%; height: 350px;display: inline-block;"></div><br/>     <!-- Chart 1 (from csv file) -->
+  <div id="csv_chart_2" onclick="button_text_function()"style="width: 100%; height: 350px;display: inline-block;"></div><br/>     <!-- Chart 1 (from csv file) -->
+  <div id="csv_chart_3" onclick="button_text_function()"style="width: 100%; height: 350px;display: inline-block;"></div><br/>     <!-- Chart 1 (from csv file) -->
+  <div id="csv_chart_4" onclick="button_text_function()"style="width: 100%; height: 350px;display: inline-block;"></div><br/>     <!-- Chart 1 (from csv file) -->
+
+</body>
+<style>
+  h1 {
+    text-shadow: 1px 3px 2px orangered;
+  }
+  .horiz_center {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+  }
+</style>
+</html>

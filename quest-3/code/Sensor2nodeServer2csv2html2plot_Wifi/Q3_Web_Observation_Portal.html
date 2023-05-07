@@ -1,0 +1,139 @@
+<!-- 
+  Maxwell Bakalos, Miguel Ianus-Valdiva, Emre Karabay, Madeline Hain
+  EC444 Smart & Connected Systems
+  Quest 3 - Cat Tracker
+  Website Observation Portal for Cat Tracker (Thermistor, Video, LED Button)
+  3/31/2023 
+-->
+<!-- This code takes the array created from a CSV file which is created from the nodeJS server
+and puts in on an updating graph in the webpage of the "NodeServerHostIP:8080" (port 8080) -->
+
+<!DOCTYPE html>
+<html>
+<head>
+<title>Quest 3: Cat Tracker</title>
+<script type="text/javascript" src="https://canvasjs.com/assets/script/jquery-1.11.1.min.js"></script>
+<script type="text/javascript" src="https://canvasjs.com/assets/script/canvasjs.min.js"></script>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<!-- Start ConvasJS Graph Script -->
+<script type="text/javascript">
+  window.onload = function () {
+    
+    // const get_array_column = (array_2d, column_index) => array_2d.map(x => x[column_index])
+    // const arrayOfNumbers = (str_arr) => str_arr.map(Number);
+    
+    result_numbers_xy = []  // Datapoints to be shown on graph (from CSV file)
+
+    // var last_10 = []
+
+    // Graph Chart 
+    var chart = new CanvasJS.Chart("csv_chart_1", {
+      // animationEnabled: true,
+          title:{
+              text: "Thermistor Live Readings (CSV Data)"
+          },
+          axisX: {
+              title: "Time",
+              suffix: " s",
+              interval: 1
+          },
+          axisY: {
+              title: "Temperature",
+              suffix: " °C"
+          },
+          toolTip:{
+          shared: true
+        },
+      data:
+          [{
+            name: "Data 1",
+            type: "spline",
+            yValueFormatString: "#0.###### °C",
+            showInLegend: true,
+            dataPoints: result_numbers_xy
+          }]
+      });
+      chart.render();
+
+    // Update data for each chart
+    function updateData() {
+      $.ajax({url: "/data", success: function(result){
+        // console.log(result)
+        let latest_index = result.length
+        // console.log(latest_index)
+
+        // Convert Data from Text to Numbers
+        result_numbers = result.map(function (obj) {
+          return [parseInt(obj[0]),parseFloat(obj[1])];
+        });
+
+        // Add the most recent datapoints 
+        result_numbers_xy.push({
+          x: result_numbers[latest_index-1][0],
+          y: result_numbers[latest_index-1][1]
+        })
+
+        // Shift data over once it's long enough
+        if (result_numbers_xy.length > 30) {
+          result_numbers_xy.shift();
+        }
+
+        console.log(result_numbers_xy) // print current datapoints to console log
+      }});
+
+      // chart.clear();
+      chart.render();
+
+      // Call updateData() again in 1 second
+      setTimeout(updateData, 1000);
+    }
+
+    // Call updateData() once to start updating the charts
+    updateData();
+  }
+</script>
+</head>
+<body>
+  <div id="csv_chart_1" onclick="button_text_function()"style="width: 100%; height: 350px;display: inline-block;"></div><br/>     <!-- Chart 1 (from csv file) -->
+  <div class="horiz_center"><button id="button" style="font-size: larger;background-color: coral; border-color: crimson; color: white;height: 60px; width: 120px;">LED Toggle</button></div>
+  <h1 id="ledState" class="horiz_center" style="color: lightsalmon;font-family: “Comic Sans MS”, “Comic Sans”, cursive;border-color: aqua;">LED Off</h1><br/>
+  <img name="main" class="horiz_center" id="main" border="0" width="640" height="480" src="http://192.168.1.33:8081"> <!-- Raspberry Pi Video Stream -->
+  
+  <!-- Script for LED Button Press -->
+  <script>
+    var button_OnOff = 0
+    var button_str = "LED Off"
+
+    $('button').on('click', function() {
+      button_OnOff = !(button_OnOff) // flip button On/Off
+      if (button_OnOff == 1) {
+        button_str = "LED Blinking"
+      }
+      else {
+        button_str = "LED Off"
+      }
+      document.getElementById("ledState").innerHTML = button_str; // display button state text
+      
+      $.ajax({
+        type: 'POST',
+        url: '/button',
+        data: { ID: 'someid' },
+        success: function() {
+          alert("Toggled LED");
+        }
+      });
+    });
+  </script>
+</body>
+<style>
+  h1 {
+    text-shadow: 1px 3px 2px orangered;
+  }
+  .horiz_center {
+    text-align: center;
+    margin-left: auto;
+    margin-right: auto;
+    display: block;
+  }
+</style>
+</html>
